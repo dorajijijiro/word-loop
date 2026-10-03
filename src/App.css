@@ -1,0 +1,244 @@
+.word-loop {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 100svh;
+  margin: 0 auto;
+  max-width: 680px;
+  padding: 24px;
+}
+
+.app-header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.progress {
+  color: #6b7280;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.speech-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.speech-button {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  color: #334155;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  min-height: 40px;
+  padding: 6px 10px;
+}
+
+.speech-button:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.speech-button[aria-pressed="true"] {
+  border-color: #3b82f6;
+  color: #1d4ed8;
+}
+
+.speech-button:focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 2px;
+}
+
+.speech-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.speech-notice {
+  color: #92400e;
+  font-size: 0.85rem;
+  margin: 8px 0 0;
+  text-align: right;
+}
+
+.controls-panel {
+  margin-top: 32px;
+}
+
+.loop-controls {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 16px;
+}
+
+.loop-toggle {
+  background: #0f766e;
+  border: 0;
+  border-radius: 14px;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  min-height: 52px;
+  padding: 10px 18px;
+  width: 100%;
+}
+
+.loop-toggle[aria-pressed="true"] {
+  background: #b91c1c;
+}
+
+.loop-toggle:hover {
+  filter: brightness(1.08);
+}
+
+.loop-toggle:focus-visible,
+.speed-presets button:focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 3px;
+}
+
+.speed-control {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.speed-control span {
+  color: #334155;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.speed-control input {
+  accent-color: #0f766e;
+  cursor: pointer;
+  min-height: 32px;
+  width: 100%;
+}
+
+.speed-presets {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 12px;
+}
+
+.speed-presets button {
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  color: #475569;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  min-height: 44px;
+  padding: 6px 4px;
+}
+
+.speed-presets button:hover {
+  background: #f1f5f9;
+}
+
+.speed-presets button.is-selected {
+  background: #ccfbf1;
+  border-color: #0f766e;
+  color: #115e59;
+}
+
+.word-card {
+  display: grid;
+  gap: 32px;
+  justify-items: center;
+  text-align: center;
+}
+
+.image-area {
+  align-items: center;
+  background: linear-gradient(145deg, #fdf6df, #e7f4ed);
+  border-radius: 32px;
+  display: flex;
+  height: min(48vw, 288px);
+  justify-content: center;
+  min-height: 200px;
+  width: min(100%, 420px);
+}
+
+.image-area span {
+  font-size: clamp(7rem, 24vw, 12rem);
+  line-height: 1;
+}
+
+.word-copy h1 {
+  color: #172033;
+  font-size: clamp(3.5rem, 14vw, 6rem);
+  letter-spacing: -0.06em;
+  line-height: 1;
+  margin: 0;
+}
+
+.translation {
+  color: #334155;
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin: 16px 0 0;
+}
+
+.phrase {
+  color: #64748b;
+  font-size: 1rem;
+  margin: 12px 0 0;
+}
+
+.word-navigation {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 40px;
+}
+
+.word-navigation button {
+  background: #172033;
+  border: 0;
+  border-radius: 16px;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  min-height: 56px;
+  padding: 12px 20px;
+}
+
+.word-navigation button:hover {
+  background: #2c3b59;
+}
+
+.word-navigation button:focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 3px;
+}
+
+@media (max-width: 480px) {
+  .word-loop {
+    padding: 16px;
+  }
+
+  .image-area {
+    border-radius: 24px;
+    min-height: 190px;
+  }
+
+  .speed-presets {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
