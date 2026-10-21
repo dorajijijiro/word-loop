@@ -1,20 +1,35 @@
 // 1回の学習セッション（遠征）の進行を管理する。
-// 遠征は「開始 → encounterLimit 回の Encounter → 帰還」で1区切り。
-// 将来 XP・Gold・HP・帰還報酬などを加える場合は ExpeditionState と recordExpeditionEncounter を拡張する。
-import type { EncounterSource } from './encounterEngine'
+// 遠征は「開始 → encounterLimit 回の Encounter → 完了 → 帰還」で1区切り。
+// XP は Encounter ごとに、Gold は完了時に rewards.ts で計算する。
+import type { Encounter } from './encounterEngine.ts'
+import {
+  calculateEncounterXp,
+  calculateReturnGold,
+  getEncounterRewardKind,
+  type ExpeditionRewards,
+} from './rewards.ts'
 
 // 1遠征あたりの Encounter 数（基本100＋再遭遇などの追加分5）。現在は固定値。
 export const expeditionEncounterLimit = 105
 
-export type ExpeditionStatus = 'idle' | 'running' | 'completed'
+// idle: 初回の待機 / running: 遠征中 / completed: 遠征完了（結果表示） / returned: 帰還（報酬と累積表示）
+export type ExpeditionStatus = 'idle' | 'running' | 'completed' | 'returned'
 
 export type ExpeditionState = {
   // この遠征で表示した Encounter 数。通常語・再遭遇語のどちらも1として数える。
   encounterCount: number
   encounterLimit: number
   status: ExpeditionStatus
-  // encounterCount のうち再遭遇語だった数（帰還画面の表示用）。
+  // encounterCount の内訳。familiar + growth + reencounter = encounterCount。
+  familiarCount: number
+  growthCount: number
   reencounterCount: number
+  // この遠征で獲得した XP（Encounter ごとに加算）。
+  xp: number
+  // 最後に記録した Encounter の通し番号。同じ Encounter の二重加算を防ぐ。
+  lastRecordedSequence: number | null
+  // 完了時に確定した報酬。完了前は null。
+  rewards: ExpeditionRewards | null
 }
 
 export function createIdleExpedition(): ExpeditionState {
@@ -22,7 +37,12 @@ export function createIdleExpedition(): ExpeditionState {
     encounterCount: 0,
     encounterLimit: expeditionEncounterLimit,
     status: 'idle',
+    familiarCount: 0,
+    growthCount: 0,
     reencounterCount: 0,
+    xp: 0,
+    lastRecordedSequence: null,
+    rewards: null,
   }
 }
 
@@ -42,34 +62,51 @@ export function hasReachedExpeditionLimit(expedition: ExpeditionState) {
 }
 
 // 単語を1つ表示したときに呼ぶ。上限に達したら以降は数えない。
+// 同じ通し番号の Encounter は1回だけ数える。
 // 上限に達しても status は running のまま（最後の単語を画面に見せるため）。
 export function recordExpeditionEncounter(
   expedition: ExpeditionState,
-  source: EncounterSource,
+  encounter: Pick<Encounter, 'sequence' | 'source' | 'bucket'>,
 ): ExpeditionState {
-  if (!isExpeditionRunning(expedition)) {
+  if (
+    !isExpeditionRunning(expedition) ||
+    (expedition.lastRecordedSequence !== null &&
+      encounter.sequence <= expedition.lastRecordedSequence)
+  ) {
     return expedition
   }
 
-  const encounterCount = expedition.encounterCount + 1
+  const kind = getEncounterRewardKind(encounter)
 
   return {
     ...expedition,
-    encounterCount,
-    reencounterCount: expedition.reencounterCount + (source === 'reencounter' ? 1 : 0),
+    encounterCount: expedition.encounterCount + 1,
+    familiarCount: expedition.familiarCount + (kind === 'familiar' ? 1 : 0),
+    growthCount: expedition.growthCount + (kind === 'growth' ? 1 : 0),
+    reencounterCount: expedition.reencounterCount + (kind === 'reencounter' ? 1 : 0),
+    xp: expedition.xp + calculateEncounterXp({ kind }),
+    lastRecordedSequence: encounter.sequence,
   }
 }
 
-// 最後の単語を表示し終えたときに呼ぶ。
+// 最後の単語を表示し終えたときに呼ぶ。ここで今回の報酬が確定する。
 export function completeExpedition(expedition: ExpeditionState): ExpeditionState {
   if (!hasReachedExpeditionLimit(expedition)) {
     return expedition
   }
 
-  return { ...expedition, status: 'completed' }
+  return {
+    ...expedition,
+    status: 'completed',
+    rewards: { xp: expedition.xp, gold: calculateReturnGold(expedition, true) },
+  }
 }
 
-// 帰還画面を閉じて待機状態へ戻す。学習進捗には触れない。
-export function returnFromExpedition(): ExpeditionState {
-  return createIdleExpedition()
+// 遠征完了画面から帰還画面へ進む。今回の結果は帰還画面で表示するため残す。
+export function returnFromExpedition(expedition: ExpeditionState): ExpeditionState {
+  if (expedition.status !== 'completed') {
+    return expedition
+  }
+
+  return { ...expedition, status: 'returned' }
 }

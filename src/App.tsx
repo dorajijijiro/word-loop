@@ -5,8 +5,8 @@ import {
   clearReencounterQueue,
   createEncounterSession,
   reserveReencounter,
-  restartEncounter,
   retreatEncounter,
+  startEncounter,
   type EncounterSession,
 } from './lib/encounterEngine'
 import {
@@ -32,6 +32,12 @@ import {
   saveLearningState,
   type LearningState,
 } from './lib/learningState'
+import {
+  applyExpeditionRewards,
+  loadPlayerProgress,
+  savePlayerProgress,
+  type PlayerProgress,
+} from './lib/playerProgress'
 import './App.css'
 
 const speedPresets = [
@@ -48,11 +54,9 @@ const progressSaveDelayMilliseconds = 1000
 
 function App() {
   const [initialState] = useState(loadLearningState)
-  const initialIndex = Math.max(
-    0,
-    words.findIndex((word) => word.id === initialState.currentWordId),
+  const [session, setSession] = useState(() =>
+    createEncounterSession(wordIds, initialState.currentWordId),
   )
-  const [session, setSession] = useState(() => createEncounterSession(wordIds, initialIndex))
   const [progress, setProgress] = useState(loadLearningProgress)
   const [attentionFeedback, setAttentionFeedback] = useState<Word | null>(null)
   const [speechEnabled, setSpeechEnabled] = useState(initialState.speechEnabled)
@@ -60,9 +64,10 @@ function App() {
   const [isLooping, setIsLooping] = useState(false)
   const [intervalSeconds, setIntervalSeconds] = useState(initialState.intervalSeconds)
   const [expedition, setExpedition] = useState(createIdleExpedition)
-  const [hasFinishedExpedition, setHasFinishedExpedition] = useState(false)
+  const [playerProgress, setPlayerProgress] = useState(loadPlayerProgress)
   const sessionRef = useRef<EncounterSession>(session)
   const expeditionRef = useRef<ExpeditionState>(expedition)
+  const playerProgressRef = useRef<PlayerProgress>(playerProgress)
   // 起動直後（sequence 0）は待機画面で単語を表示しないため、記録済みとして扱う。
   const recordedSequenceRef = useRef<number | undefined>(session.current.sequence)
   const attentionSequenceRef = useRef<number | undefined>(undefined)
@@ -71,7 +76,7 @@ function App() {
   const latestProgressRef = useRef<LearningProgressMap>(progress)
   const pendingSaveRef = useRef<number | undefined>(undefined)
   const latestStateRef = useRef<LearningState>({
-    currentWordId: words[initialIndex].id,
+    currentWordId: session.lastNormalWordId,
     intervalSeconds: initialState.intervalSeconds,
     speechEnabled: initialState.speechEnabled,
     showPhrase: initialState.showPhrase,
@@ -80,10 +85,10 @@ function App() {
     typeof window !== 'undefined' &&
     'speechSynthesis' in window &&
     'SpeechSynthesisUtterance' in window
-  const currentIndex = session.normalIndex
-  // 再起動時の再開位置は通常周回側の単語にする。
-  const normalWord = words[currentIndex]
-  const currentWord = wordById.get(session.current.wordId) ?? normalWord
+  // 再起動時の再開位置は通常選出側の単語にする。
+  const normalWordId = session.lastNormalWordId
+  const currentWord = wordById.get(session.current.wordId) ?? words[0]
+  const currentIndex = words.indexOf(currentWord)
   const currentProgress = getWordProgress(progress, currentWord.id)
   const intervalMilliseconds = intervalSeconds * 1000
   const speedLabel = intervalSeconds.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
@@ -112,10 +117,7 @@ function App() {
   // 上限に達したら自動周回を止め、未消化の再遭遇予約を破棄する。
   // 遠征完了（帰還画面）への切り替えは、最後の単語を表示した後に Effect で行う。
   const showEncounter = useCallback((nextSession: EncounterSession) => {
-    const nextExpedition = recordExpeditionEncounter(
-      expeditionRef.current,
-      nextSession.current.source,
-    )
+    const nextExpedition = recordExpeditionEncounter(expeditionRef.current, nextSession.current)
     const reachedLimit = hasReachedExpeditionLimit(nextExpedition)
     const settledSession = reachedLimit ? clearReencounterQueue(nextSession) : nextSession
 
@@ -136,10 +138,15 @@ function App() {
         return
       }
 
+      const context = { progress: latestProgressRef.current }
       const nextSession =
         direction === 'next'
-          ? advanceEncounter(sessionRef.current, wordIds)
-          : retreatEncounter(sessionRef.current, wordIds)
+          ? advanceEncounter(sessionRef.current, wordIds, context)
+          : retreatEncounter(sessionRef.current, context)
+      // 「前へ」で戻れる語がない場合は何もしない。
+      if (nextSession === sessionRef.current) {
+        return
+      }
       showEncounter(nextSession)
 
       const nextWord = wordById.get(nextSession.current.wordId)
@@ -153,8 +160,10 @@ function App() {
   const beginExpedition = () => {
     const nextExpedition = startExpedition()
     expeditionRef.current = nextExpedition
-    // 開始時点ではなく、現在の単語を表示した時点で1 Encounter目として数える。
-    const nextSession = restartEncounter(sessionRef.current, wordIds)
+    // 開始時点ではなく、最初の単語を表示した時点で1 Encounter目として数える。
+    const nextSession = startEncounter(sessionRef.current, wordIds, {
+      progress: latestProgressRef.current,
+    })
     showEncounter(nextSession)
 
     const nextWord = wordById.get(nextSession.current.wordId)
@@ -165,10 +174,9 @@ function App() {
 
   const finishExpedition = () => {
     cancelSpeech()
-    const nextExpedition = returnFromExpedition()
+    const nextExpedition = returnFromExpedition(expeditionRef.current)
     expeditionRef.current = nextExpedition
     setExpedition(nextExpedition)
-    setHasFinishedExpedition(true)
   }
 
   const requestReencounter = () => {
@@ -225,6 +233,20 @@ function App() {
 
     const timerId = window.setTimeout(() => {
       const nextExpedition = completeExpedition(expeditionRef.current)
+      if (nextExpedition === expeditionRef.current || nextExpedition.rewards === null) {
+        return
+      }
+
+      // 遠征完了の時点で報酬を確定し、すぐ保存する（帰還前に再読み込みしても失わない）。
+      // running → completed の切り替えは1回だけなので、報酬が二重に加算されることはない。
+      const nextPlayerProgress = applyExpeditionRewards(
+        playerProgressRef.current,
+        nextExpedition.rewards,
+      )
+      playerProgressRef.current = nextPlayerProgress
+      savePlayerProgress(nextPlayerProgress)
+      setPlayerProgress(nextPlayerProgress)
+
       expeditionRef.current = nextExpedition
       setExpedition(nextExpedition)
     }, intervalMilliseconds)
@@ -280,7 +302,7 @@ function App() {
 
   useEffect(() => {
     latestStateRef.current = {
-      currentWordId: normalWord.id,
+      currentWordId: normalWordId,
       intervalSeconds,
       speechEnabled,
       showPhrase,
@@ -294,7 +316,7 @@ function App() {
       saveLearningState(latestStateRef.current)
       pendingSaveRef.current = undefined
     }, 500)
-  }, [normalWord.id, intervalSeconds, showPhrase, speechEnabled])
+  }, [normalWordId, intervalSeconds, showPhrase, speechEnabled])
 
   useEffect(() => {
     const flushLearningState = () => {
@@ -325,7 +347,7 @@ function App() {
     <main className="word-loop">
       <header className="app-header">
         <div className="progress">
-          {expedition.status !== 'idle' && (
+          {(expedition.status === 'running' || expedition.status === 'completed') && (
             <p
               className="expedition-progress"
               aria-label={`遠征 ${expedition.encounterCount} / ${expedition.encounterLimit} Encounter`}
@@ -377,26 +399,72 @@ function App() {
       {expedition.status === 'idle' && (
         <section className="expedition-panel" aria-label="遠征の待機">
           <p className="expedition-title">待機中</p>
-          <p>
-            {expedition.encounterLimit} Encounter で1回の遠征です。
-          </p>
+          <p>{expedition.encounterLimit} Encounter で1回の遠征です。</p>
+          {playerProgress.completedExpeditions > 0 && (
+            <p className="expedition-note">
+              累積XP {playerProgress.totalXp} · 所持Gold {playerProgress.gold} · 完了遠征{' '}
+              {playerProgress.completedExpeditions}
+            </p>
+          )}
           <button type="button" className="expedition-button" onClick={beginExpedition}>
-            {hasFinishedExpedition ? '次の遠征を開始' : '遠征を開始'}
+            遠征を開始
           </button>
         </section>
       )}
 
-      {expedition.status === 'completed' && (
+      {expedition.status === 'completed' && expedition.rewards !== null && (
         <section className="expedition-panel" aria-label="遠征の結果" role="status">
           <p className="expedition-title">遠征完了</p>
           <dl className="expedition-result">
             <dt>Encounter</dt>
             <dd>{expedition.encounterCount}</dd>
-            <dt>再遭遇</dt>
+            <dt>Familiar</dt>
+            <dd>{expedition.familiarCount}</dd>
+            <dt>Growth</dt>
+            <dd>{expedition.growthCount}</dd>
+            <dt>Re-encounter</dt>
             <dd>{expedition.reencounterCount}</dd>
+          </dl>
+          <dl className="expedition-result expedition-rewards">
+            <dt>XP</dt>
+            <dd>{expedition.rewards.xp}</dd>
+            <dt>Gold</dt>
+            <dd>{expedition.rewards.gold}</dd>
           </dl>
           <button type="button" className="expedition-button" onClick={finishExpedition}>
             帰還する
+          </button>
+        </section>
+      )}
+
+      {expedition.status === 'returned' && expedition.rewards !== null && (
+        <section className="expedition-panel" aria-label="帰還" role="status">
+          <p className="expedition-title">帰還</p>
+          <p>
+            {expedition.encounterCount} 語に出会い、無事に帰還しました。
+          </p>
+          <div className="return-summary">
+            <p className="return-label">今回の獲得</p>
+            <dl className="expedition-result expedition-rewards">
+              <dt>XP</dt>
+              <dd>+{expedition.rewards.xp}</dd>
+              <dt>Gold</dt>
+              <dd>+{expedition.rewards.gold}</dd>
+            </dl>
+          </div>
+          <div className="return-summary">
+            <p className="return-label">これまでの成長</p>
+            <dl className="expedition-result">
+              <dt>累積XP</dt>
+              <dd>{playerProgress.totalXp}</dd>
+              <dt>所持Gold</dt>
+              <dd>{playerProgress.gold}</dd>
+              <dt>完了遠征</dt>
+              <dd>{playerProgress.completedExpeditions}</dd>
+            </dl>
+          </div>
+          <button type="button" className="expedition-button" onClick={beginExpedition}>
+            次の遠征へ
           </button>
         </section>
       )}
@@ -488,7 +556,9 @@ function App() {
       <p className="dev-stats" aria-label="開発確認用の表示">
         開発用 · Encounter: {currentProgress.encounterCount} · Attention:{' '}
         {currentProgress.attentionCount} · 再遭遇予約: {session.reencounterQueue.length}
-        {session.current.source === 'reencounter' && ' · 再遭遇中'}
+        {session.current.source === 'reencounter' ? ' · 再遭遇中' : ` · ${session.current.bucket}`}
+        {expedition.status === 'running' &&
+          ` · F/G/R: ${expedition.familiarCount}/${expedition.growthCount}/${expedition.reencounterCount} · XP: ${expedition.xp}`}
       </p>
     </main>
   )
