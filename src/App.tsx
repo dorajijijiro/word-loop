@@ -1,5 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { words } from './data/words'
+import { words, type Word } from './data/words'
+import {
+  advanceEncounter,
+  createEncounterSession,
+  reserveReencounter,
+  retreatEncounter,
+  type EncounterSession,
+} from './lib/encounterEngine'
+import {
+  getWordProgress,
+  loadLearningProgress,
+  recordAttention,
+  recordEncounter,
+  saveLearningProgress,
+  type LearningProgressMap,
+} from './lib/learningProgress'
 import {
   loadLearningState,
   saveLearningState,
@@ -14,18 +29,30 @@ const speedPresets = [
   { label: 'ゆっくり', seconds: 2 },
 ]
 
+const wordIds = words.map((word) => word.id)
+const wordById = new Map(words.map((word) => [word.id, word]))
+const attentionFeedbackMilliseconds = 1200
+const progressSaveDelayMilliseconds = 1000
+
 function App() {
   const [initialState] = useState(loadLearningState)
   const initialIndex = Math.max(
     0,
     words.findIndex((word) => word.id === initialState.currentWordId),
   )
-  const [currentIndex, setCurrentIndex] = useState(initialIndex)
+  const [session, setSession] = useState(() => createEncounterSession(wordIds, initialIndex))
+  const [progress, setProgress] = useState(loadLearningProgress)
+  const [attentionFeedback, setAttentionFeedback] = useState<Word | null>(null)
   const [speechEnabled, setSpeechEnabled] = useState(initialState.speechEnabled)
   const [showPhrase, setShowPhrase] = useState(initialState.showPhrase)
   const [isLooping, setIsLooping] = useState(false)
   const [intervalSeconds, setIntervalSeconds] = useState(initialState.intervalSeconds)
-  const currentIndexRef = useRef(currentIndex)
+  const sessionRef = useRef<EncounterSession>(session)
+  const recordedSequenceRef = useRef<number | undefined>(undefined)
+  const attentionSequenceRef = useRef<number | undefined>(undefined)
+  const feedbackTimerRef = useRef<number | undefined>(undefined)
+  const pendingProgressSaveRef = useRef<number | undefined>(undefined)
+  const latestProgressRef = useRef<LearningProgressMap>(progress)
   const pendingSaveRef = useRef<number | undefined>(undefined)
   const latestStateRef = useRef<LearningState>({
     currentWordId: words[initialIndex].id,
@@ -37,7 +64,11 @@ function App() {
     typeof window !== 'undefined' &&
     'speechSynthesis' in window &&
     'SpeechSynthesisUtterance' in window
-  const currentWord = words[currentIndex]
+  const currentIndex = session.normalIndex
+  // 再起動時の再開位置は通常周回側の単語にする。
+  const normalWord = words[currentIndex]
+  const currentWord = wordById.get(session.current.wordId) ?? normalWord
+  const currentProgress = getWordProgress(progress, currentWord.id)
   const intervalMilliseconds = intervalSeconds * 1000
   const speedLabel = intervalSeconds.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
 
@@ -62,17 +93,46 @@ function App() {
   )
 
   const changeWord = useCallback(
-    (offset: number) => {
-      const nextIndex = (currentIndexRef.current + offset + words.length) % words.length
-      currentIndexRef.current = nextIndex
-      setCurrentIndex(nextIndex)
+    (direction: 'next' | 'previous') => {
+      const nextSession =
+        direction === 'next'
+          ? advanceEncounter(sessionRef.current, wordIds)
+          : retreatEncounter(sessionRef.current, wordIds)
+      sessionRef.current = nextSession
+      setSession(nextSession)
 
-      if (speechEnabled) {
-        speak(words[nextIndex].english)
+      const nextWord = wordById.get(nextSession.current.wordId)
+      if (speechEnabled && nextWord !== undefined) {
+        speak(nextWord.english)
       }
     },
     [speechEnabled, speak],
   )
+
+  const requestReencounter = () => {
+    const encounter = sessionRef.current.current
+    const word = wordById.get(encounter.wordId)
+    if (word === undefined) {
+      return
+    }
+
+    // 同じ表示中の連打は1回の意思表示として数える。
+    if (attentionSequenceRef.current !== encounter.sequence) {
+      attentionSequenceRef.current = encounter.sequence
+      setProgress((current) => recordAttention(current, word.id))
+    }
+
+    const nextSession = reserveReencounter(sessionRef.current, word.id)
+    sessionRef.current = nextSession
+    setSession(nextSession)
+
+    window.clearTimeout(feedbackTimerRef.current)
+    setAttentionFeedback(word)
+    feedbackTimerRef.current = window.setTimeout(() => {
+      setAttentionFeedback(null)
+      feedbackTimerRef.current = undefined
+    }, attentionFeedbackMilliseconds)
+  }
 
   const toggleSpeech = () => {
     if (speechEnabled) {
@@ -86,13 +146,60 @@ function App() {
       return
     }
 
-    const timerId = window.setInterval(() => changeWord(1), intervalMilliseconds)
+    const timerId = window.setInterval(() => changeWord('next'), intervalMilliseconds)
     return () => window.clearInterval(timerId)
   }, [changeWord, intervalMilliseconds, isLooping])
 
+  // Encounterは通し番号ごとに1回だけ記録する。
+  // StrictModeでEffectが二重実行されても ref で同じ表示の二重加算を防ぐ。
+  useEffect(() => {
+    const encounter = session.current
+    if (recordedSequenceRef.current === encounter.sequence) {
+      return
+    }
+
+    recordedSequenceRef.current = encounter.sequence
+    const encounteredAt = new Date().toISOString()
+    setProgress((current) => recordEncounter(current, encounter.wordId, encounteredAt))
+  }, [session])
+
+  useEffect(() => {
+    latestProgressRef.current = progress
+
+    if (pendingProgressSaveRef.current !== undefined) {
+      return
+    }
+
+    pendingProgressSaveRef.current = window.setTimeout(() => {
+      saveLearningProgress(latestProgressRef.current)
+      pendingProgressSaveRef.current = undefined
+    }, progressSaveDelayMilliseconds)
+  }, [progress])
+
+  useEffect(() => {
+    const flushLearningProgress = () => {
+      if (pendingProgressSaveRef.current !== undefined) {
+        window.clearTimeout(pendingProgressSaveRef.current)
+        pendingProgressSaveRef.current = undefined
+      }
+      saveLearningProgress(latestProgressRef.current)
+    }
+
+    window.addEventListener('pagehide', flushLearningProgress)
+
+    return () => {
+      window.removeEventListener('pagehide', flushLearningProgress)
+      flushLearningProgress()
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => window.clearTimeout(feedbackTimerRef.current)
+  }, [])
+
   useEffect(() => {
     latestStateRef.current = {
-      currentWordId: currentWord.id,
+      currentWordId: normalWord.id,
       intervalSeconds,
       speechEnabled,
       showPhrase,
@@ -106,7 +213,7 @@ function App() {
       saveLearningState(latestStateRef.current)
       pendingSaveRef.current = undefined
     }, 500)
-  }, [currentWord.id, intervalSeconds, showPhrase, speechEnabled])
+  }, [normalWord.id, intervalSeconds, showPhrase, speechEnabled])
 
   useEffect(() => {
     const flushLearningState = () => {
@@ -177,6 +284,19 @@ function App() {
       )}
 
       <section className="word-card" aria-live="polite">
+        <button
+          type="button"
+          className="reencounter-button"
+          onClick={requestReencounter}
+          aria-label={`${currentWord.english}をもう一度出す`}
+        />
+
+        {attentionFeedback !== null && (
+          <p className="reencounter-feedback" role="status">
+            {attentionFeedback.english} をもう一度出します
+          </p>
+        )}
+
         <div className="image-area" role="img" aria-label={currentWord.image.alt}>
           <span aria-hidden="true">{currentWord.image.placeholder}</span>
         </div>
@@ -227,14 +347,20 @@ function App() {
         </section>
 
         <nav className="word-navigation" aria-label="単語の移動">
-          <button type="button" onClick={() => changeWord(-1)}>
+          <button type="button" onClick={() => changeWord('previous')}>
             前へ
           </button>
-          <button type="button" onClick={() => changeWord(1)}>
+          <button type="button" onClick={() => changeWord('next')}>
             次へ
           </button>
         </nav>
       </div>
+
+      <p className="dev-stats" aria-label="開発確認用の表示">
+        開発用 · Encounter: {currentProgress.encounterCount} · Attention:{' '}
+        {currentProgress.attentionCount} · 再遭遇予約: {session.reencounterQueue.length}
+        {session.current.source === 'reencounter' && ' · 再遭遇中'}
+      </p>
     </main>
   )
 }

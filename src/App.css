@@ -160,7 +160,43 @@
   display: grid;
   gap: 32px;
   justify-items: center;
+  position: relative;
   text-align: center;
+}
+
+/* カード全体をワンタップで「もう一度見る」にする透明ボタン */
+.reencounter-button {
+  background: transparent;
+  border: 0;
+  border-radius: 24px;
+  cursor: pointer;
+  inset: 0;
+  padding: 0;
+  position: absolute;
+  -webkit-tap-highlight-color: transparent;
+  z-index: 1;
+}
+
+.reencounter-button:focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 4px;
+}
+
+.reencounter-feedback {
+  background: rgba(23, 32, 51, 0.88);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 700;
+  left: 50%;
+  margin: 0;
+  padding: 8px 16px;
+  pointer-events: none;
+  position: absolute;
+  top: 12px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  z-index: 2;
 }
 
 .image-area {
@@ -226,6 +262,16 @@
 .word-navigation button:focus-visible {
   outline: 3px solid #f59e0b;
   outline-offset: 3px;
+}
+
+.dev-stats {
+  border-top: 1px dashed #cbd5e1;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  margin: 24px 0 0;
+  padding-top: 8px;
+  text-align: center;
 }
 
 @media (max-width: 480px) {
