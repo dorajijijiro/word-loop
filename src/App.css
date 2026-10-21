@@ -1,165 +1,415 @@
+/* ---------- レイアウト ---------- */
 .word-loop {
-  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  min-height: 100svh;
   margin: 0 auto;
-  max-width: 680px;
-  padding: 24px;
+  max-width: 460px;
+  min-height: 100svh;
+  padding: 20px 20px 12px;
 }
 
-.app-header {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: space-between;
+.word-loop p,
+.word-loop h1,
+.word-loop dl,
+.word-loop dd {
+  margin: 0;
 }
 
-.progress {
-  color: #6b7280;
-  font-size: 0.9rem;
+.numeral,
+.stat-list dd,
+.reward-list dd,
+.breakdown dd,
+.level-value,
+.hud,
+.level-xp {
   font-variant-numeric: tabular-nums;
 }
 
-.speech-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
+.muted {
+  color: var(--muted);
 }
 
-.speech-button {
-  background: #fff;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  color: #334155;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.9rem;
-  font-weight: 700;
-  min-height: 40px;
-  padding: 6px 10px;
+.eyebrow {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
-.speech-button:hover:not(:disabled) {
-  background: #f1f5f9;
-}
-
-.speech-button[aria-pressed="true"] {
-  border-color: #3b82f6;
-  color: #1d4ed8;
-}
-
-.speech-button:focus-visible {
-  outline: 3px solid #f59e0b;
-  outline-offset: 2px;
-}
-
-.speech-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
+.note {
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 .speech-notice {
-  color: #92400e;
-  font-size: 0.85rem;
-  margin: 8px 0 0;
-  text-align: right;
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-bottom: 8px;
+  text-align: center;
 }
 
-.controls-panel {
-  margin-top: 32px;
-}
-
-.loop-controls {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 20px;
-  padding: 16px;
-}
-
-.loop-toggle {
-  background: #0f766e;
-  border: 0;
-  border-radius: 14px;
-  color: #fff;
-  cursor: pointer;
+/* ---------- ボタン ---------- */
+.word-loop button {
   font: inherit;
-  font-weight: 700;
-  min-height: 52px;
-  padding: 10px 18px;
-  width: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.loop-toggle[aria-pressed="true"] {
-  background: #b91c1c;
-}
-
-.loop-toggle:hover {
-  filter: brightness(1.08);
-}
-
-.loop-toggle:focus-visible,
-.speed-presets button:focus-visible {
-  outline: 3px solid #f59e0b;
+.word-loop button:focus-visible,
+.speed-control input:focus-visible {
+  outline: 2px solid var(--focus);
   outline-offset: 3px;
 }
 
-.speed-control {
-  display: grid;
-  gap: 8px;
-  margin-top: 16px;
+.word-loop button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
 }
 
-.speed-control span {
-  color: #334155;
-  font-size: 0.95rem;
-  font-weight: 700;
-}
-
-.speed-control input {
-  accent-color: #0f766e;
+.primary-button {
+  background: var(--ink);
+  border: 0;
+  border-radius: 14px;
+  color: var(--bg);
   cursor: pointer;
-  min-height: 32px;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  min-height: 56px;
+  padding: 12px 24px;
+  transition: transform 120ms ease;
   width: 100%;
 }
 
-.speed-presets {
+.primary-button:active {
+  transform: scale(0.985);
+}
+
+.link-button {
+  background: none;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+  min-height: 44px;
+  padding: 8px 16px;
+}
+
+/* ---------- 拠点・結果・帰還（共通の静かな画面） ---------- */
+.screen {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 28px;
+  justify-content: center;
+  padding: 24px 4px;
+}
+
+.screen .primary-button {
+  margin-top: 8px;
+}
+
+.screen .link-button {
+  align-self: center;
+  margin-top: -16px;
+}
+
+.wordmark {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+}
+
+.screen-title {
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+  margin-top: -20px;
+}
+
+.level-summary {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(4, 1fr);
-  margin-top: 12px;
 }
 
-.speed-presets button {
-  background: #fff;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  color: #475569;
-  cursor: pointer;
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 700;
-  min-height: 44px;
-  padding: 6px 4px;
+.level-value {
+  font-size: 3.4rem;
+  font-weight: 300;
+  letter-spacing: -0.03em;
+  line-height: 1;
 }
 
-.speed-presets button:hover {
-  background: #f1f5f9;
+.level-prefix {
+  color: var(--muted);
+  font-size: 1.1rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
 }
 
-.speed-presets button.is-selected {
-  background: #ccfbf1;
-  border-color: #0f766e;
-  color: #115e59;
+.level-summary.is-compact .level-value {
+  display: none;
 }
 
-.word-card {
+.level-xp {
+  font-size: 0.95rem;
+}
+
+.level-bar,
+.hud-line {
+  background: var(--line);
+  border-radius: 999px;
+  height: 3px;
+  overflow: hidden;
+}
+
+.level-bar span,
+.hud-line span {
+  background: var(--ink);
+  display: block;
+  height: 100%;
+  transform-origin: left center;
+}
+
+.level-bar span {
+  transition: transform 400ms ease;
+}
+
+.stat-list {
+  border-top: 1px solid var(--line);
   display: grid;
-  gap: 32px;
+}
+
+.stat-list > div {
+  align-items: baseline;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+}
+
+.stat-list dt {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+.stat-list dd {
+  font-size: 1.15rem;
+  font-weight: 500;
+}
+
+.next-expedition {
+  display: grid;
+  gap: 6px;
+}
+
+.next-expedition-count {
+  font-size: 1.6rem;
+  font-weight: 300;
+}
+
+/* 遠征完了：完了・XP・Gold を最も大きく、内訳は控えめに */
+.reward-list {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.reward-list > div {
+  display: grid;
+  gap: 4px;
+}
+
+.reward-list dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+}
+
+.reward-list dd {
+  font-size: 2.6rem;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.rule {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 0;
+  width: 100%;
+}
+
+.breakdown {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(4, auto);
+  justify-content: space-between;
+}
+
+.breakdown > div {
+  display: grid;
+  gap: 2px;
+}
+
+.breakdown dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.breakdown .mark-growth {
+  color: var(--accent);
+}
+
+.breakdown .mark-again {
+  color: var(--again);
+}
+
+.breakdown dd {
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+}
+
+/* 帰還 */
+.return-columns {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.return-columns .eyebrow {
+  margin-bottom: 8px;
+}
+
+.level-up {
+  animation: level-up-in 400ms ease-out both;
+  border-bottom: 1px solid var(--ink);
+  border-top: 1px solid var(--ink);
+  display: grid;
+  gap: 6px;
+  padding: 16px 0;
+}
+
+.level-up .eyebrow {
+  color: var(--ink);
+}
+
+.level-up-values {
+  align-items: baseline;
+  display: flex;
+  font-size: 2rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+  gap: 14px;
+}
+
+.level-up-arrow {
+  color: var(--muted);
+  font-size: 1.2rem;
+}
+
+@keyframes level-up-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- 遠征中 HUD ---------- */
+.hud {
+  align-items: baseline;
+  display: grid;
+  gap: 8px 12px;
+  grid-template-columns: 1fr auto;
+}
+
+.hud-level {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.hud-count {
+  font-size: 0.95rem;
+  text-align: right;
+}
+
+.hud-count .numeral {
+  font-size: 1.15rem;
+  font-weight: 500;
+}
+
+.hud-line {
+  grid-column: 1 / -1;
+  height: 2px;
+}
+
+.hud-xp {
+  color: var(--muted);
+  font-size: 0.8rem;
+  grid-column: 2;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.hud-xp .numeral {
+  color: var(--ink-soft);
+}
+
+/* 幅固定のインライン要素なのでレイアウトは動かない。key で毎回作り直し、短時間だけ表示する。 */
+.xp-gain {
+  animation-fill-mode: both;
+  animation-name: xp-flash;
+  animation-timing-function: ease-out;
+  display: inline-block;
+  font-weight: 500;
+  margin-right: 8px;
+  min-width: 3ch;
+  text-align: right;
+}
+
+.xp-gain.is-familiar {
+  color: var(--muted);
+}
+
+.xp-gain.is-growth {
+  color: var(--accent);
+}
+
+.xp-gain.is-reencounter {
+  color: var(--again);
+}
+
+@keyframes xp-flash {
+  0% {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+
+  25% {
+    opacity: 1;
+    transform: none;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---------- 単語カード ---------- */
+.word-card {
+  align-content: center;
+  display: grid;
+  flex: 1;
+  gap: 14px;
   justify-items: center;
+  padding: 24px 0 16px;
   position: relative;
   text-align: center;
 }
@@ -168,222 +418,243 @@
 .reencounter-button {
   background: transparent;
   border: 0;
-  border-radius: 24px;
+  border-radius: 20px;
   cursor: pointer;
   inset: 0;
   padding: 0;
   position: absolute;
-  -webkit-tap-highlight-color: transparent;
   z-index: 1;
 }
 
-.reencounter-button:focus-visible {
-  outline: 3px solid #f59e0b;
-  outline-offset: 4px;
+.reencounter-button:active ~ .word-copy,
+.reencounter-button:active ~ .image-area {
+  transform: scale(0.985);
 }
 
-.reencounter-feedback {
-  background: rgba(23, 32, 51, 0.88);
-  border-radius: 999px;
-  color: #fff;
-  font-size: 0.9rem;
-  font-weight: 700;
-  left: 50%;
-  margin: 0;
-  padding: 8px 16px;
-  pointer-events: none;
-  position: absolute;
-  top: 12px;
-  transform: translateX(-50%);
+/* 高さを固定し、ラベルの有無で単語の位置が動かないようにする */
+.encounter-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  height: 1.2rem;
+  letter-spacing: 0.1em;
+  line-height: 1.2rem;
+}
+
+.encounter-label .is-growth {
+  color: var(--accent);
+}
+
+.encounter-label .is-again {
+  color: var(--again);
+}
+
+.word-copy {
+  display: grid;
+  gap: 10px;
+  transition: transform 120ms ease;
+}
+
+.english {
+  font-size: clamp(3.2rem, 16vw, 5.2rem);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
   white-space: nowrap;
-  z-index: 2;
+}
+
+.translation {
+  color: var(--ink-soft);
+  font-size: 1.3rem;
+  font-weight: 500;
+  min-height: 1.6em;
 }
 
 .image-area {
   align-items: center;
-  background: linear-gradient(145deg, #fdf6df, #e7f4ed);
-  border-radius: 32px;
+  background: var(--surface);
+  border-radius: 24px;
   display: flex;
-  height: min(48vw, 288px);
+  height: clamp(112px, 18svh, 168px);
   justify-content: center;
-  min-height: 200px;
-  width: min(100%, 420px);
+  margin-top: 8px;
+  transition: transform 120ms ease;
+  width: min(100%, 260px);
 }
 
 .image-area span {
-  font-size: clamp(7rem, 24vw, 12rem);
+  font-size: clamp(3.6rem, 10svh, 5.2rem);
   line-height: 1;
-}
-
-.word-copy h1 {
-  color: #172033;
-  font-size: clamp(3.5rem, 14vw, 6rem);
-  letter-spacing: -0.06em;
-  line-height: 1;
-  margin: 0;
-}
-
-.translation {
-  color: #334155;
-  font-size: 1.35rem;
-  font-weight: 600;
-  margin: 16px 0 0;
 }
 
 .phrase {
-  color: #64748b;
-  font-size: 1rem;
-  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  min-height: 1.5em;
 }
 
-.word-navigation {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: 1fr 1fr;
-  margin-top: 40px;
+.tap-hint {
+  color: var(--muted);
+  font-size: 0.7rem;
+  height: 1rem;
+  letter-spacing: 0.08em;
+  opacity: 0.6;
 }
 
-.word-navigation button {
-  background: #172033;
-  border: 0;
-  border-radius: 16px;
-  color: #fff;
-  cursor: pointer;
-  font: inherit;
-  font-weight: 700;
-  min-height: 56px;
-  padding: 12px 20px;
+.reencounter-feedback {
+  animation: soft-in 200ms ease-out both;
+  bottom: 12px;
+  color: var(--again);
+  font-size: 0.8rem;
+  font-weight: 600;
+  left: 0;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
 }
 
-.word-navigation button:hover {
-  background: #2c3b59;
-}
-
-.word-navigation button:focus-visible {
-  outline: 3px solid #f59e0b;
-  outline-offset: 3px;
-}
-
-.dev-stats {
-  border-top: 1px dashed #cbd5e1;
-  color: #94a3b8;
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  margin: 24px 0 0;
-  padding-top: 8px;
-  text-align: center;
-}
-
-@media (max-width: 480px) {
-  .word-loop {
-    padding: 16px;
+@keyframes soft-in {
+  from {
+    opacity: 0;
   }
 
-  .image-area {
-    border-radius: 24px;
-    min-height: 190px;
-  }
-
-  .speed-presets {
-    grid-template-columns: repeat(2, 1fr);
+  to {
+    opacity: 1;
   }
 }
 
-.progress p {
-  margin: 0;
-}
-
-.expedition-progress {
-  color: #0f766e;
-  font-weight: 700;
-}
-
-/* 遠征の待機・帰還画面（仮UI） */
-.expedition-panel {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 24px;
+/* ---------- 操作 ---------- */
+.controls {
   display: grid;
   gap: 16px;
-  justify-items: center;
-  margin: 32px 0;
-  padding: 40px 24px;
+  padding-top: 8px;
+}
+
+.transport {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1.4fr 1fr;
+}
+
+.ghost-button,
+.loop-toggle {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  min-height: 52px;
+  padding: 10px 12px;
+}
+
+.loop-toggle[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+}
+
+.settings {
+  display: grid;
+  gap: 12px;
+}
+
+.speed-presets {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  overflow: hidden;
+}
+
+.speed-presets button {
+  background: transparent;
+  border: 0;
+  border-left: 1px solid var(--line);
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  min-height: 44px;
+}
+
+.speed-presets button:first-child {
+  border-left: 0;
+}
+
+.speed-presets button.is-selected {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.speed-control {
+  align-items: center;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 6.5em 1fr;
+}
+
+.speed-control span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.speed-control input {
+  accent-color: var(--ink);
+  cursor: pointer;
+  min-height: 28px;
+  width: 100%;
+}
+
+.toggles {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+
+.text-toggle {
+  background: none;
+  border: 0;
+  border-radius: 10px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.82rem;
+  min-height: 44px;
+  padding: 8px 12px;
+}
+
+.text-toggle:not([aria-pressed]),
+.text-toggle[aria-pressed="true"] {
+  color: var(--ink);
+}
+
+/* ---------- 開発用 ---------- */
+.dev-stats {
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+  margin-top: auto;
+  opacity: 0.55;
+  padding-top: 16px;
   text-align: center;
 }
 
-.expedition-panel p {
-  margin: 0;
-}
+@media (prefers-reduced-motion: reduce) {
+  .level-up,
+  .reencounter-feedback {
+    animation: none;
+  }
 
-.expedition-title {
-  font-size: 1.6rem;
-  font-weight: 800;
-}
+  .xp-gain {
+    animation-name: none;
+  }
 
-.expedition-result {
-  display: grid;
-  font-variant-numeric: tabular-nums;
-  gap: 4px 16px;
-  grid-template-columns: auto auto;
-  margin: 0;
-}
-
-.expedition-result dt {
-  color: #6b7280;
-  text-align: right;
-}
-
-.expedition-result dd {
-  font-weight: 700;
-  margin: 0;
-  text-align: left;
-}
-
-.expedition-button {
-  background: #0f766e;
-  border: 0;
-  border-radius: 14px;
-  color: #fff;
-  cursor: pointer;
-  font: inherit;
-  font-weight: 700;
-  min-height: 52px;
-  padding: 10px 28px;
-}
-
-.expedition-button:hover {
-  filter: brightness(1.08);
-}
-
-.expedition-button:focus-visible {
-  outline: 3px solid #f59e0b;
-  outline-offset: 3px;
-}
-
-.loop-toggle:disabled,
-.word-navigation button:disabled {
-  cursor: not-allowed;
-  opacity: 0.4;
-}
-
-.expedition-note {
-  color: #6b7280;
-  font-size: 0.9rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.expedition-rewards dd {
-  color: #b45309;
-}
-
-.return-summary {
-  display: grid;
-  gap: 6px;
-  justify-items: center;
-}
-
-.return-label {
-  color: #6b7280;
-  font-size: 0.85rem;
-  font-weight: 700;
+  .level-bar span,
+  .word-copy,
+  .image-area,
+  .primary-button {
+    transition: none;
+  }
 }

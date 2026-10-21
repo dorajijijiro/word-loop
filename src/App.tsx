@@ -38,6 +38,8 @@ import {
   savePlayerProgress,
   type PlayerProgress,
 } from './lib/playerProgress'
+import { getLevelChange, getLevelProgress, type LevelProgress } from './lib/level'
+import { calculateEncounterXp, getEncounterRewardKind } from './lib/rewards'
 import './App.css'
 
 const speedPresets = [
@@ -65,6 +67,11 @@ function App() {
   const [intervalSeconds, setIntervalSeconds] = useState(initialState.intervalSeconds)
   const [expedition, setExpedition] = useState(createIdleExpedition)
   const [playerProgress, setPlayerProgress] = useState(loadPlayerProgress)
+  // 遠征開始前の累積XP。帰還画面でレベルアップを判定するために使う（保存しない）。
+  const [expeditionStartXp, setExpeditionStartXp] = useState(playerProgress.totalXp)
+  const isLoopingRef = useRef(isLooping)
+  // 自動周回のまま遠征を終えたら、次の遠征も自動周回で始める。
+  const resumeLoopingRef = useRef(false)
   const sessionRef = useRef<EncounterSession>(session)
   const expeditionRef = useRef<ExpeditionState>(expedition)
   const playerProgressRef = useRef<PlayerProgress>(playerProgress)
@@ -127,6 +134,7 @@ function App() {
     setSession(settledSession)
 
     if (reachedLimit) {
+      resumeLoopingRef.current = isLoopingRef.current
       setIsLooping(false)
     }
   }, [])
@@ -160,6 +168,7 @@ function App() {
   const beginExpedition = () => {
     const nextExpedition = startExpedition()
     expeditionRef.current = nextExpedition
+    setExpeditionStartXp(playerProgressRef.current.totalXp)
     // 開始時点ではなく、最初の単語を表示した時点で1 Encounter目として数える。
     const nextSession = startEncounter(sessionRef.current, wordIds, {
       progress: latestProgressRef.current,
@@ -170,11 +179,24 @@ function App() {
     if (speechEnabled && nextWord !== undefined) {
       speak(nextWord.english)
     }
+
+    if (resumeLoopingRef.current) {
+      resumeLoopingRef.current = false
+      setIsLooping(true)
+    }
   }
 
   const finishExpedition = () => {
     cancelSpeech()
     const nextExpedition = returnFromExpedition(expeditionRef.current)
+    expeditionRef.current = nextExpedition
+    setExpedition(nextExpedition)
+  }
+
+  const goToBase = () => {
+    cancelSpeech()
+    resumeLoopingRef.current = false
+    const nextExpedition = createIdleExpedition()
     expeditionRef.current = nextExpedition
     setExpedition(nextExpedition)
   }
@@ -214,6 +236,10 @@ function App() {
     }
     setSpeechEnabled((enabled) => !enabled)
   }
+
+  useEffect(() => {
+    isLoopingRef.current = isLooping
+  }, [isLooping])
 
   useEffect(() => {
     if (!isLooping) {
@@ -343,53 +369,21 @@ function App() {
     }
   }, [])
 
+  const levelProgress = getLevelProgress(playerProgress.totalXp)
+  const levelChange = getLevelChange(expeditionStartXp, playerProgress.totalXp)
+  const encounterKind = getEncounterRewardKind(session.current)
+  const encounterXp = calculateEncounterXp({ kind: encounterKind })
+  // XP 表示は次の語が出る前に消える長さにする（高速周回で残らない）。
+  const xpFlashMilliseconds = Math.round(Math.min(700, Math.max(160, intervalMilliseconds * 0.9)))
+  const encounterLabel =
+    encounterKind === 'reencounter'
+      ? { className: 'is-again', mark: '↻', text: 'again' }
+      : encounterKind === 'growth'
+        ? { className: 'is-growth', mark: '●', text: 'growth' }
+        : null
+
   return (
-    <main className="word-loop">
-      <header className="app-header">
-        <div className="progress">
-          {(expedition.status === 'running' || expedition.status === 'completed') && (
-            <p
-              className="expedition-progress"
-              aria-label={`遠征 ${expedition.encounterCount} / ${expedition.encounterLimit} Encounter`}
-            >
-              遠征 {expedition.encounterCount} / {expedition.encounterLimit}
-            </p>
-          )}
-          <p aria-label={`${currentIndex + 1}語目、全${words.length}語`}>
-            単語 {currentIndex + 1} / {words.length}
-          </p>
-        </div>
-
-        <div className="speech-controls">
-          <button
-            type="button"
-            className="speech-button"
-            onClick={() => speak(currentWord.english)}
-            disabled={!speechSupported || !speechEnabled}
-            aria-label={`${currentWord.english}を再生`}
-          >
-            再生
-          </button>
-          <button
-            type="button"
-            className="speech-button speech-toggle"
-            onClick={toggleSpeech}
-            disabled={!speechSupported}
-            aria-pressed={speechEnabled}
-          >
-            音声 {speechEnabled ? 'ON' : 'OFF'}
-          </button>
-          <button
-            type="button"
-            className="speech-button phrase-toggle"
-            onClick={() => setShowPhrase((visible) => !visible)}
-            aria-pressed={showPhrase}
-          >
-            補助文 {showPhrase ? 'ON' : 'OFF'}
-          </button>
-        </div>
-      </header>
-
+    <main className={`word-loop is-${expedition.status}`}>
       {!speechSupported && (
         <p className="speech-notice" role="status">
           このブラウザでは音声再生を利用できません。
@@ -397,170 +391,361 @@ function App() {
       )}
 
       {expedition.status === 'idle' && (
-        <section className="expedition-panel" aria-label="遠征の待機">
-          <p className="expedition-title">待機中</p>
-          <p>{expedition.encounterLimit} Encounter で1回の遠征です。</p>
-          {playerProgress.completedExpeditions > 0 && (
-            <p className="expedition-note">
-              累積XP {playerProgress.totalXp} · 所持Gold {playerProgress.gold} · 完了遠征{' '}
-              {playerProgress.completedExpeditions}
+        <section className="screen base-screen" aria-labelledby="base-title">
+          <h1 id="base-title" className="wordmark">
+            WORD LOOP
+          </h1>
+
+          <LevelSummary progress={levelProgress} totalXp={playerProgress.totalXp} />
+
+          <dl className="stat-list">
+            <div>
+              <dt>Gold</dt>
+              <dd>{formatNumber(playerProgress.gold)}</dd>
+            </div>
+            <div>
+              <dt>Expeditions</dt>
+              <dd>{formatNumber(playerProgress.completedExpeditions)}</dd>
+            </div>
+          </dl>
+
+          <div className="next-expedition">
+            <p className="eyebrow">Next expedition</p>
+            <p className="next-expedition-count">
+              <span className="numeral">0</span>
+              <span className="muted"> / {expedition.encounterLimit}</span>
             </p>
-          )}
-          <button type="button" className="expedition-button" onClick={beginExpedition}>
-            遠征を開始
+            <p className="note">{expedition.encounterLimit} 語に出会うと、1回の遠征が終わります。</p>
+          </div>
+
+          <button type="button" className="primary-button" onClick={beginExpedition}>
+            遠征を始める
           </button>
         </section>
       )}
 
+      {expedition.status === 'running' && (
+        <>
+          <header className="hud" aria-label="遠征の状況">
+            <p className="hud-level">Lv. {levelProgress.level}</p>
+            <p
+              className="hud-count"
+              aria-label={`遠征 ${expedition.encounterCount} / ${expedition.encounterLimit} Encounter`}
+            >
+              <span className="numeral">{expedition.encounterCount}</span>
+              <span className="muted"> / {expedition.encounterLimit}</span>
+            </p>
+            <div className="hud-line" aria-hidden="true">
+              <span
+                style={{
+                  transform: `scaleX(${expedition.encounterCount / expedition.encounterLimit})`,
+                }}
+              />
+            </div>
+            <p className="hud-xp" aria-label={`今回の遠征で ${expedition.xp} XP`}>
+              <span
+                key={session.current.sequence}
+                className={`xp-gain is-${encounterKind}`}
+                style={{ animationDuration: `${xpFlashMilliseconds}ms` }}
+                aria-hidden="true"
+              >
+                +{encounterXp}
+              </span>
+              <span className="numeral">{formatNumber(expedition.xp)}</span> XP
+            </p>
+          </header>
+
+          <section className="word-card" aria-live="polite">
+            <button
+              type="button"
+              className="reencounter-button"
+              onClick={requestReencounter}
+              aria-label={`${currentWord.english}をもう一度出す`}
+            />
+
+            <p className="encounter-label">
+              {encounterLabel !== null && (
+                <span className={encounterLabel.className}>
+                  <span aria-hidden="true">{encounterLabel.mark}</span> {encounterLabel.text}
+                </span>
+              )}
+            </p>
+
+            <div className="word-copy">
+              <h1 className="english">{currentWord.english}</h1>
+              <p className="translation">{currentWord.japanese}</p>
+            </div>
+
+            <div className="image-area" role="img" aria-label={currentWord.image.alt}>
+              <span aria-hidden="true">{currentWord.image.placeholder}</span>
+            </div>
+
+            <p className="phrase">{showPhrase ? currentWord.phrase : ''}</p>
+
+            <p className="tap-hint" aria-hidden="true">
+              {attentionFeedback === null ? 'タップでもう一度' : ''}
+            </p>
+
+            {attentionFeedback !== null && (
+              <p className="reencounter-feedback" role="status">
+                <span aria-hidden="true">↻</span> {attentionFeedback.english} をもう一度出します
+              </p>
+            )}
+          </section>
+
+          <div className="controls">
+            <nav className="transport" aria-label="単語の移動と自動周回">
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => changeWord('previous')}
+                disabled={!isExpeditionRunning(expedition)}
+              >
+                前へ
+              </button>
+              <button
+                type="button"
+                className="loop-toggle"
+                onClick={() => setIsLooping((looping) => !looping)}
+                disabled={!isExpeditionRunning(expedition)}
+                aria-pressed={isLooping}
+              >
+                <span aria-hidden="true">{isLooping ? '❚❚' : '▶'}</span>
+                {isLooping ? ' 停止' : ' 自動周回'}
+              </button>
+              <button
+                type="button"
+                className="ghost-button"
+                onClick={() => changeWord('next')}
+                disabled={!isExpeditionRunning(expedition)}
+              >
+                次へ
+              </button>
+            </nav>
+
+            <section className="settings" aria-label="自動周回の設定">
+              <div className="speed-presets" aria-label="速度プリセット" role="group">
+                {speedPresets.map((preset) => (
+                  <button
+                    type="button"
+                    key={preset.label}
+                    className={intervalSeconds === preset.seconds ? 'is-selected' : undefined}
+                    onClick={() => setIntervalSeconds(preset.seconds)}
+                    aria-pressed={intervalSeconds === preset.seconds}
+                    aria-label={`${preset.label} ${preset.seconds}秒/語`}
+                  >
+                    {preset.seconds}s
+                  </button>
+                ))}
+              </div>
+
+              <label className="speed-control">
+                <span>速度 {speedLabel}秒/語</span>
+                <input
+                  type="range"
+                  min="0.2"
+                  max="3"
+                  step="0.05"
+                  value={intervalSeconds}
+                  onChange={(event) => setIntervalSeconds(Number(event.target.value))}
+                />
+              </label>
+
+              <div className="toggles">
+                <button
+                  type="button"
+                  className="text-toggle"
+                  onClick={toggleSpeech}
+                  disabled={!speechSupported}
+                  aria-pressed={speechEnabled}
+                >
+                  音声 {speechEnabled ? 'ON' : 'OFF'}
+                </button>
+                <button
+                  type="button"
+                  className="text-toggle"
+                  onClick={() => setShowPhrase((visible) => !visible)}
+                  aria-pressed={showPhrase}
+                >
+                  補助文 {showPhrase ? 'ON' : 'OFF'}
+                </button>
+                <button
+                  type="button"
+                  className="text-toggle"
+                  onClick={() => speak(currentWord.english)}
+                  disabled={!speechSupported || !speechEnabled}
+                  aria-label={`${currentWord.english}を再生`}
+                >
+                  再生
+                </button>
+              </div>
+            </section>
+          </div>
+        </>
+      )}
+
       {expedition.status === 'completed' && expedition.rewards !== null && (
-        <section className="expedition-panel" aria-label="遠征の結果" role="status">
-          <p className="expedition-title">遠征完了</p>
-          <dl className="expedition-result">
-            <dt>Encounter</dt>
-            <dd>{expedition.encounterCount}</dd>
-            <dt>Familiar</dt>
-            <dd>{expedition.familiarCount}</dd>
-            <dt>Growth</dt>
-            <dd>{expedition.growthCount}</dd>
-            <dt>Re-encounter</dt>
-            <dd>{expedition.reencounterCount}</dd>
+        <section className="screen result-screen" aria-labelledby="result-title" role="status">
+          <p className="eyebrow">Expedition complete</p>
+          <h1 id="result-title" className="screen-title">
+            遠征完了
+          </h1>
+
+          <dl className="reward-list">
+            <div>
+              <dt>XP</dt>
+              <dd>+{formatNumber(expedition.rewards.xp)}</dd>
+            </div>
+            <div>
+              <dt>Gold</dt>
+              <dd>+{formatNumber(expedition.rewards.gold)}</dd>
+            </div>
           </dl>
-          <dl className="expedition-result expedition-rewards">
-            <dt>XP</dt>
-            <dd>{expedition.rewards.xp}</dd>
-            <dt>Gold</dt>
-            <dd>{expedition.rewards.gold}</dd>
+
+          <hr className="rule" />
+
+          <dl className="breakdown">
+            <div>
+              <dt>encounters</dt>
+              <dd>{expedition.encounterCount}</dd>
+            </div>
+            <div>
+              <dt>familiar</dt>
+              <dd>{expedition.familiarCount}</dd>
+            </div>
+            <div>
+              <dt>
+                <span className="mark-growth" aria-hidden="true">● </span>growth
+              </dt>
+              <dd>{expedition.growthCount}</dd>
+            </div>
+            <div>
+              <dt>
+                <span className="mark-again" aria-hidden="true">↻ </span>again
+              </dt>
+              <dd>{expedition.reencounterCount}</dd>
+            </div>
           </dl>
-          <button type="button" className="expedition-button" onClick={finishExpedition}>
+
+          <button type="button" className="primary-button" onClick={finishExpedition}>
             帰還する
           </button>
         </section>
       )}
 
       {expedition.status === 'returned' && expedition.rewards !== null && (
-        <section className="expedition-panel" aria-label="帰還" role="status">
-          <p className="expedition-title">帰還</p>
-          <p>
-            {expedition.encounterCount} 語に出会い、無事に帰還しました。
-          </p>
-          <div className="return-summary">
-            <p className="return-label">今回の獲得</p>
-            <dl className="expedition-result expedition-rewards">
-              <dt>XP</dt>
-              <dd>+{expedition.rewards.xp}</dd>
-              <dt>Gold</dt>
-              <dd>+{expedition.rewards.gold}</dd>
-            </dl>
-          </div>
-          <div className="return-summary">
-            <p className="return-label">これまでの成長</p>
-            <dl className="expedition-result">
-              <dt>累積XP</dt>
-              <dd>{playerProgress.totalXp}</dd>
-              <dt>所持Gold</dt>
-              <dd>{playerProgress.gold}</dd>
-              <dt>完了遠征</dt>
-              <dd>{playerProgress.completedExpeditions}</dd>
-            </dl>
-          </div>
-          <button type="button" className="expedition-button" onClick={beginExpedition}>
-            次の遠征へ
-          </button>
-        </section>
-      )}
+        <section className="screen return-screen" aria-labelledby="return-title" role="status">
+          <p className="eyebrow">Returned</p>
+          <h1 id="return-title" className="screen-title">
+            {expedition.encounterCount} 語に出会い、帰還しました
+          </h1>
 
-      {expedition.status === 'running' && (
-        <section className="word-card" aria-live="polite">
-          <button
-            type="button"
-            className="reencounter-button"
-            onClick={requestReencounter}
-            aria-label={`${currentWord.english}をもう一度出す`}
-          />
-
-          {attentionFeedback !== null && (
-            <p className="reencounter-feedback" role="status">
-              {attentionFeedback.english} をもう一度出します
-            </p>
+          {levelChange.leveledUp && (
+            <div className="level-up" aria-label={`レベルアップ Lv. ${levelChange.from} から Lv. ${levelChange.to}`}>
+              <p className="eyebrow">Level up</p>
+              <p className="level-up-values" aria-hidden="true">
+                <span className="muted">Lv. {levelChange.from}</span>
+                <span className="level-up-arrow">→</span>
+                <span>Lv. {levelChange.to}</span>
+              </p>
+            </div>
           )}
 
-          <div className="image-area" role="img" aria-label={currentWord.image.alt}>
-            <span aria-hidden="true">{currentWord.image.placeholder}</span>
+          <LevelSummary
+            progress={levelProgress}
+            totalXp={playerProgress.totalXp}
+            compact={levelChange.leveledUp}
+          />
+
+          <div className="return-columns">
+            <div>
+              <p className="eyebrow">This expedition</p>
+              <dl className="stat-list">
+                <div>
+                  <dt>XP</dt>
+                  <dd>+{formatNumber(expedition.rewards.xp)}</dd>
+                </div>
+                <div>
+                  <dt>Gold</dt>
+                  <dd>+{formatNumber(expedition.rewards.gold)}</dd>
+                </div>
+              </dl>
+            </div>
+            <div>
+              <p className="eyebrow">Total</p>
+              <dl className="stat-list">
+                <div>
+                  <dt>XP</dt>
+                  <dd>{formatNumber(playerProgress.totalXp)}</dd>
+                </div>
+                <div>
+                  <dt>Gold</dt>
+                  <dd>{formatNumber(playerProgress.gold)}</dd>
+                </div>
+                <div>
+                  <dt>Expeditions</dt>
+                  <dd>{formatNumber(playerProgress.completedExpeditions)}</dd>
+                </div>
+              </dl>
+            </div>
           </div>
 
-          <div className="word-copy">
-            <h1>{currentWord.english}</h1>
-            <p className="translation">{currentWord.japanese}</p>
-            {showPhrase && <p className="phrase">{currentWord.phrase}</p>}
-          </div>
+          <button type="button" className="primary-button" onClick={beginExpedition}>
+            次の遠征へ
+          </button>
+          <button type="button" className="link-button" onClick={goToBase}>
+            拠点に戻る
+          </button>
         </section>
       )}
 
-      <div className="controls-panel">
-        <section className="loop-controls" aria-label="自動周回の設定">
-          <button
-            type="button"
-            className="loop-toggle"
-            onClick={() => setIsLooping((looping) => !looping)}
-            disabled={!isExpeditionRunning(expedition)}
-            aria-pressed={isLooping}
-          >
-            {isLooping ? '停止' : '自動周回を開始'}
-          </button>
-
-          <label className="speed-control">
-            <span>速度 {speedLabel}秒/語</span>
-            <input
-              type="range"
-              min="0.2"
-              max="3"
-              step="0.05"
-              value={intervalSeconds}
-              onChange={(event) => setIntervalSeconds(Number(event.target.value))}
-            />
-          </label>
-
-          <div className="speed-presets" aria-label="速度プリセット">
-            {speedPresets.map((preset) => (
-              <button
-                type="button"
-                key={preset.label}
-                className={intervalSeconds === preset.seconds ? 'is-selected' : undefined}
-                onClick={() => setIntervalSeconds(preset.seconds)}
-                aria-pressed={intervalSeconds === preset.seconds}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <nav className="word-navigation" aria-label="単語の移動">
-          <button
-            type="button"
-            onClick={() => changeWord('previous')}
-            disabled={!isExpeditionRunning(expedition)}
-          >
-            前へ
-          </button>
-          <button
-            type="button"
-            onClick={() => changeWord('next')}
-            disabled={!isExpeditionRunning(expedition)}
-          >
-            次へ
-          </button>
-        </nav>
-      </div>
-
       <p className="dev-stats" aria-label="開発確認用の表示">
-        開発用 · Encounter: {currentProgress.encounterCount} · Attention:{' '}
-        {currentProgress.attentionCount} · 再遭遇予約: {session.reencounterQueue.length}
+        dev · 単語 {currentIndex + 1}/{words.length} · Encounter {currentProgress.encounterCount} ·
+        Attention {currentProgress.attentionCount} · 再遭遇予約 {session.reencounterQueue.length}
         {session.current.source === 'reencounter' ? ' · 再遭遇中' : ` · ${session.current.bucket}`}
         {expedition.status === 'running' &&
-          ` · F/G/R: ${expedition.familiarCount}/${expedition.growthCount}/${expedition.reencounterCount} · XP: ${expedition.xp}`}
+          ` · F/G/R ${expedition.familiarCount}/${expedition.growthCount}/${expedition.reencounterCount}`}
       </p>
     </main>
+  )
+}
+
+const numberFormat = new Intl.NumberFormat('en-US')
+
+function formatNumber(value: number) {
+  return numberFormat.format(value)
+}
+
+type LevelSummaryProps = {
+  progress: LevelProgress
+  totalXp: number
+  compact?: boolean
+}
+
+// 現在のレベルと次のレベルまでの進捗。拠点と帰還画面で共通。
+function LevelSummary({ progress, totalXp, compact = false }: LevelSummaryProps) {
+  const remainingXp = progress.nextLevelTotalXp - totalXp
+  return (
+    <div className={compact ? 'level-summary is-compact' : 'level-summary'}>
+      <p className="level-value">
+        <span className="level-prefix">Lv.</span> {progress.level}
+      </p>
+      <p className="level-xp">
+        <span className="numeral">{formatNumber(totalXp)}</span>
+        <span className="muted"> / {formatNumber(progress.nextLevelTotalXp)} XP</span>
+      </p>
+      <div
+        className="level-bar"
+        role="progressbar"
+        aria-label={`次のレベルまで ${remainingXp} XP`}
+        aria-valuemin={0}
+        aria-valuemax={progress.nextLevelXp}
+        aria-valuenow={progress.currentLevelXp}
+      >
+        <span style={{ transform: `scaleX(${progress.progressRatio})` }} />
+      </div>
+      <p className="note">Lv. {progress.level + 1} まで {formatNumber(remainingXp)} XP</p>
+    </div>
   )
 }
 
