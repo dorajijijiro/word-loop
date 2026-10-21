@@ -8,6 +8,7 @@ import {
   classifyWord,
   createBucketCounts,
   createTrackCounts,
+  getMinimumFamiliarPool,
   groupWordsByBucket,
   selectNormalWord,
   type BucketCounts,
@@ -174,6 +175,28 @@ test('familiar が少ない間は familiar 枠に new を混ぜ、少数語の�
   const { actual } = runSelection(wordIds, progress, 9, 50)
   assert.ok(actual.new > actual.familiar, `new ${actual.new} / familiar ${actual.familiar}`)
   assert.equal(actual.growth, 0)
+})
+
+test('familiar 枠に new を混ぜる最低語数は語彙数に応じて増える（20語: 8、200語: 30、上限30）', () => {
+  assert.equal(getMinimumFamiliarPool(20), 8)
+  assert.equal(getMinimumFamiliarPool(100), 15)
+  assert.equal(getMinimumFamiliarPool(200), 30)
+  assert.equal(getMinimumFamiliarPool(15000), 30)
+})
+
+test('語彙200語: familiar が10語だけの間は familiar 枠に new を混ぜ、その10語ばかりを繰り返さない', () => {
+  const wordIds = Array.from({ length: 200 }, (_, index) => `w${index}`)
+  // 10語だけ familiar、50語は1回見た new、残りは未遭遇
+  const progress = progressOf(wordIds.slice(0, 60).map((id, index) => [id, index < 10 ? 3 : 1, 0]))
+  const { actual } = runSelection(wordIds, progress, 11, 100)
+  assert.ok(actual.new > actual.familiar, `new ${actual.new} / familiar ${actual.familiar}`)
+})
+
+test('語彙200語: familiar が30語以上あれば familiar 中心（9:1）に戻る', () => {
+  const wordIds = Array.from({ length: 200 }, (_, index) => `w${index}`)
+  const progress = progressOf(wordIds.slice(0, 30).map((id) => [id, 3, 0]))
+  const { actual } = runSelection(wordIds, progress, 12, 100)
+  assert.ok(actual.familiar >= 85, `familiar ${actual.familiar}`)
 })
 
 test('候補不足: どの組み合わせでも停止せず1語返す', () => {

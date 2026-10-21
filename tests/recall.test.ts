@@ -310,8 +310,8 @@ test('Recall 進行: 想起時間は速度と調和し、速すぎず長すぎ�
 
 // ---------- Word データ ----------
 
-test('Word データ: 20語すべてに1〜2行の短い Recall Cue があり、英語を含まない', () => {
-  assert.equal(words.length, 20)
+test('Word データ: 全項目に1〜2行の短い Recall Cue があり、英語を含まない', () => {
+  assert.ok(words.length >= 20)
   for (const word of words) {
     const cue = word.recallCue ?? ''
     const lines = cue.split('\n')

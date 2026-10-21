@@ -465,7 +465,11 @@
 }
 
 .english {
-  font-size: clamp(3.2rem, 16vw, 5.2rem);
+  /* 文字数（--english-length）が多い語は、本文幅（最大 460px − 左右 20px）に収まるよう縮める */
+  font-size: min(
+    clamp(3.2rem, 16vw, 5.2rem),
+    calc((min(100vw, 460px) - 40px) / (var(--english-length, 1) * 0.62))
+  );
   font-weight: 600;
   letter-spacing: -0.035em;
   line-height: 1.05;
@@ -494,6 +498,13 @@
 .image-area span {
   font-size: clamp(3.6rem, 10svh, 5.2rem);
   line-height: 1;
+}
+
+/* 抽象語・phrase の意味を持たない placeholder は控えめに出す */
+.image-area span.is-neutral {
+  color: var(--muted);
+  font-size: clamp(2rem, 6svh, 2.8rem);
+  opacity: 0.5;
 }
 
 .phrase {
