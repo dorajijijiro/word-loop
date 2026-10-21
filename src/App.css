@@ -241,11 +241,11 @@
   width: 100%;
 }
 
+/* encounters / familiar / new と growth / again / recall の2段 */
 .breakdown {
   display: grid;
-  gap: 6px;
-  grid-template-columns: repeat(5, auto);
-  justify-content: space-between;
+  gap: 14px 6px;
+  grid-template-columns: repeat(3, 1fr);
 }
 
 .breakdown > div {
@@ -522,6 +522,48 @@
   right: 0;
 }
 
+/* ---------- Recall Encounter ---------- */
+/* 通常の Encounter と同じ静かなトーンにする。クイズらしい色・枠・番号は使わない。 */
+.encounter-label .is-recall {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.recall-prompt {
+  font-size: clamp(2rem, 9vw, 2.6rem);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.recall-cue {
+  color: var(--ink-soft);
+  font-size: 0.95rem;
+  line-height: 1.7;
+  white-space: pre-line;
+}
+
+.recall-copy {
+  gap: 18px;
+}
+
+.word-card.is-reveal .recall-cue {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.word-card.is-reveal .english {
+  animation: soft-in 220ms ease-out both;
+}
+
+.recall-xp {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  height: 1rem;
+  letter-spacing: 0.06em;
+}
+
 @keyframes soft-in {
   from {
     opacity: 0;
@@ -653,7 +695,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .level-up,
-  .reencounter-feedback {
+  .reencounter-feedback,
+  .word-card.is-reveal .english {
     animation: none;
   }
 

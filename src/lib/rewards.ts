@@ -3,7 +3,8 @@
 // EncounterRewardInput に判定材料を足し、calculateEncounterXp の中だけを変更する。
 import type { Encounter } from './encounterEngine.ts'
 
-export type EncounterRewardKind = 'familiar' | 'new' | 'growth' | 'reencounter'
+// recall は元の bucket（new / growth）とは別の種別として数える。
+export type EncounterRewardKind = 'familiar' | 'new' | 'growth' | 'reencounter' | 'recall'
 
 export const encounterXpTable: Record<EncounterRewardKind, number> = {
   familiar: 1,
@@ -11,12 +12,16 @@ export const encounterXpTable: Record<EncounterRewardKind, number> = {
   new: 5,
   growth: 5,
   reencounter: 10,
+  // 正誤判定はしないので「思い出せた報酬」ではなく「Recall Encounter を経験した報酬」。
+  recall: 10,
 }
 
 export const returnBaseGold = 100
 // new / growth（learning 枠）の Encounter 1回あたりの Gold。
 export const learningEncounterGold = 2
 export const reencounterGold = 5
+// Recall は再遭遇と同じく「学習中の語への特別な接触」として扱う。
+export const recallGold = 5
 
 export type EncounterRewardInput = {
   kind: EncounterRewardKind
@@ -27,6 +32,8 @@ export type ExpeditionResultCounts = {
   newCount: number
   growthCount: number
   reencounterCount: number
+  // Milestone C 以前の集計には存在しないため省略可能（0 扱い）。
+  recallCount?: number
 }
 
 export type ExpeditionRewards = {
@@ -37,7 +44,10 @@ export type ExpeditionRewards = {
 export function getEncounterRewardKind(
   encounter: Pick<Encounter, 'source' | 'bucket'>,
 ): EncounterRewardKind {
-  return encounter.source === 'reencounter' ? 'reencounter' : encounter.bucket
+  if (encounter.source === 'reencounter' || encounter.source === 'recall') {
+    return encounter.source
+  }
+  return encounter.bucket
 }
 
 // 1 Encounter 分の XP。同じ Encounter を二重に数えないことは呼び出し側（expedition）が保証する。
@@ -54,6 +64,7 @@ export function calculateReturnGold(counts: ExpeditionResultCounts, completed: b
   return (
     returnBaseGold +
     (counts.newCount + counts.growthCount) * learningEncounterGold +
-    counts.reencounterCount * reencounterGold
+    counts.reencounterCount * reencounterGold +
+    (counts.recallCount ?? 0) * recallGold
   )
 }

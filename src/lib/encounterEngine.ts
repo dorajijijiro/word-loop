@@ -1,7 +1,8 @@
 // 次に表示する単語（Encounter）を決めるロジック。
-// 優先順位は「期限が来た再遭遇語」→「9:1 通常選出（wordSelector）」。
-// 再遭遇は 9:1 比率の外側として扱い、比率の計算には含めない。
+// 優先順位は「期限が来た再遭遇語」→「予定された Recall」→「9:1 通常選出（wordSelector）」。
+// 再遭遇・Recall は 9:1 比率の外側として扱い、比率の計算には含めない。
 import type { LearningProgressMap } from './learningProgress.ts'
+import { planRecallPositions, selectRecallWord } from './recall.ts'
 import {
   addTrackCount,
   classifyWord,
@@ -18,14 +19,14 @@ export const reencounterDelay = 5
 // 「前へ」で戻れる履歴の上限。
 const historyLimit = 50
 
-export type EncounterSource = 'normal' | 'reencounter'
+export type EncounterSource = 'normal' | 'reencounter' | 'recall'
 
 export type Encounter = {
   // 起動してからの通し番号。表示が変わるたびに1増える。
   sequence: number
   wordId: string
   source: EncounterSource
-  // 表示した時点での語の分類。
+  // 表示した時点での語の分類。Recall では Recall 直前の bucket（new / growth）。
   bucket: LearningBucket
 }
 
@@ -46,12 +47,18 @@ export type EncounterSession = {
   lastNormalWordId: string
   // Attention を記録済みの Encounter の通し番号。同じ表示中の連打を1回にまとめる。
   attentionSequence: number | null
+  // この遠征で Recall を出す予定の通し番号（昇順）。出した・見送った分は取り除く。
+  recallSchedule: number[]
+  // この遠征で Recall した語。同じ語の Recall をなるべく避ける。
+  recalledWordIds: string[]
 }
 
 // 選出時に参照する最新の学習進捗と乱数関数。
 export type SelectionContext = {
   progress: LearningProgressMap
   random?: RandomSource
+  // Recall Cue を持つ語。省略時は wordIds 全体。
+  recallWordIds?: string[]
 }
 
 export function createEncounterSession(wordIds: string[], startWordId: string): EncounterSession {
@@ -63,6 +70,8 @@ export function createEncounterSession(wordIds: string[], startWordId: string): 
     plannedCounts: createTrackCounts(),
     lastNormalWordId: wordId,
     attentionSequence: null,
+    recallSchedule: [],
+    recalledWordIds: [],
   }
 }
 
@@ -97,7 +106,8 @@ const selectNormalEncounter = (
   }
 }
 
-// 自動周回・「次へ」で呼ぶ。期限が来た再遭遇予約があれば最優先で出し、なければ 9:1 で選ぶ。
+// 自動周回・「次へ」で呼ぶ。期限が来た再遭遇予約があれば最優先で出す。
+// なければ予定の来た Recall を出し、どちらもなければ 9:1 で選ぶ。
 export function advanceEncounter(
   session: EncounterSession,
   wordIds: string[],
@@ -126,9 +136,33 @@ export function advanceEncounter(
     }
   }
 
+  // 予定の来た Recall。候補（growth / 見たことのある new）がなければこの回は見送る。
+  // 再遭遇に押し出された Recall は、次の前進で出る（位置が少し後ろへずれる）。
+  const [dueRecall, ...restSchedule] = session.recallSchedule
+  if (dueRecall !== undefined && dueRecall <= sequence) {
+    const recall = selectRecallWord({
+      wordIds: context.recallWordIds ?? wordIds,
+      progress: context.progress,
+      recalledWordIds: session.recalledWordIds,
+      previousWordId: session.current.wordId,
+      random: context.random,
+    })
+    if (recall !== null) {
+      return {
+        ...session,
+        current: { sequence, wordId: recall.wordId, source: 'recall', bucket: recall.bucket },
+        history,
+        recallSchedule: restSchedule,
+        recalledWordIds: [...session.recalledWordIds, recall.wordId],
+      }
+    }
+  }
+
+  const normalSession =
+    dueRecall !== undefined && dueRecall <= sequence ? { ...session, recallSchedule: restSchedule } : session
   return {
-    ...session,
-    ...selectNormalEncounter(session, wordIds, context),
+    ...normalSession,
+    ...selectNormalEncounter(normalSession, wordIds, context),
     history,
   }
 }
@@ -189,8 +223,9 @@ export function registerAttention(session: EncounterSession): AttentionResult {
   }
 }
 
-// 遠征開始時に呼ぶ。履歴・比率・再遭遇予約をリセットし、最初の語を 9:1 で選ぶ。
+// 遠征開始時に呼ぶ。履歴・比率・再遭遇予約・Recall をリセットし、最初の語を 9:1 で選ぶ。
 // 前の遠征の最後の語（session.current）とは連続しないようにする。
+// Recall の予定は遠征内の位置（recall.ts の recallWindows）を通し番号に変換して持つ。
 export function startEncounter(
   session: EncounterSession,
   wordIds: string[],
@@ -201,12 +236,18 @@ export function startEncounter(
     history: [],
     reencounterQueue: [],
     plannedCounts: createTrackCounts(),
+    recalledWordIds: [],
   }
+  const first = selectNormalEncounter(resetSession, wordIds, context)
+  // 遠征の1 Encounter 目が first.current.sequence。
+  const recallSchedule = planRecallPositions(context.random).map(
+    (position) => first.current.sequence + position - 1,
+  )
 
-  return { ...resetSession, ...selectNormalEncounter(resetSession, wordIds, context) }
+  return { ...resetSession, ...first, recallSchedule }
 }
 
-// 遠征終了時に呼ぶ。未消化の再遭遇予約を破棄する。
+// 遠征終了時に呼ぶ。未消化の再遭遇予約と Recall の予定を破棄する。
 export function clearReencounterQueue(session: EncounterSession): EncounterSession {
-  return { ...session, reencounterQueue: [] }
+  return { ...session, reencounterQueue: [], recallSchedule: [] }
 }

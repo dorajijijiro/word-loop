@@ -12,6 +12,7 @@ import {
 import {
   completeExpedition,
   createIdleExpedition,
+  getCompletionDelayMilliseconds,
   hasReachedExpeditionLimit,
   isExpeditionRunning,
   recordExpeditionEncounter,
@@ -40,6 +41,7 @@ import {
 } from './lib/playerProgress'
 import { getLevelChange, getLevelProgress, type LevelProgress } from './lib/level'
 import { calculateEncounterXp, getEncounterRewardKind } from './lib/rewards'
+import { nextRecallStep, startRecallStep, type RecallStep } from './lib/recall'
 import './App.css'
 
 const speedPresets = [
@@ -51,6 +53,8 @@ const speedPresets = [
 
 const wordIds = words.map((word) => word.id)
 const wordById = new Map(words.map((word) => [word.id, word]))
+// Recall Cue を持つ語だけを Recall の対象にする。
+const recallWordIds = words.filter((word) => word.recallCue !== undefined).map((word) => word.id)
 const attentionFeedbackMilliseconds = 1200
 const progressSaveDelayMilliseconds = 1000
 
@@ -69,6 +73,11 @@ function App() {
   const [playerProgress, setPlayerProgress] = useState(loadPlayerProgress)
   // 遠征開始前の累積XP。帰還画面でレベルアップを判定するために使う（保存しない）。
   const [expeditionStartXp, setExpeditionStartXp] = useState(playerProgress.totalXp)
+  // Recall Encounter の進行（cue → reveal）。Recall 中以外は null。
+  // Recall 中は通常の自動送り・「前へ」「次へ」・Attention を止め、Recall 側のタイマーだけで次へ進める。
+  const [recallStep, setRecallStep] = useState<RecallStep | null>(null)
+  const recallStepRef = useRef<RecallStep | null>(null)
+  const intervalSecondsRef = useRef(intervalSeconds)
   const isLoopingRef = useRef(isLooping)
   // 自動周回のまま遠征を終えたら、次の遠征も自動周回で始める。
   const resumeLoopingRef = useRef(false)
@@ -98,6 +107,9 @@ function App() {
   const currentProgress = getWordProgress(progress, currentWord.id)
   const intervalMilliseconds = intervalSeconds * 1000
   const speedLabel = intervalSeconds.toFixed(2).replace(/0+$/, '').replace(/\.$/, '')
+  // Recall の Encounter を表示中ならそのフェーズ。Recall を見せ終えて遠征完了を待つ間は reveal のまま。
+  const recallPhase =
+    session.current.source === 'recall' ? (recallStep?.phase ?? 'reveal') : null
 
   const cancelSpeech = useCallback(() => {
     if (speechSupported) {
@@ -122,15 +134,22 @@ function App() {
   // 新しい Encounter を表示するたびに遠征の進行度を1進める。
   // 上限に達したら自動周回を止め、未消化の再遭遇予約を破棄する。
   // 遠征完了（帰還画面）への切り替えは、最後の単語を表示した後に Effect で行う。
+  // Recall の Encounter なら cue フェーズを始める（ref は同期的に更新し、直後のタイマー発火でも進ませない）。
   const showEncounter = useCallback((nextSession: EncounterSession) => {
     const nextExpedition = recordExpeditionEncounter(expeditionRef.current, nextSession.current)
     const reachedLimit = hasReachedExpeditionLimit(nextExpedition)
     const settledSession = reachedLimit ? clearReencounterQueue(nextSession) : nextSession
+    const nextRecallStepValue =
+      settledSession.current.source === 'recall'
+        ? startRecallStep(settledSession.current.sequence, intervalSecondsRef.current)
+        : null
 
     expeditionRef.current = nextExpedition
     sessionRef.current = settledSession
+    recallStepRef.current = nextRecallStepValue
     setExpedition(nextExpedition)
     setSession(settledSession)
+    setRecallStep(nextRecallStepValue)
 
     if (reachedLimit) {
       resumeLoopingRef.current = isLoopingRef.current
@@ -141,11 +160,12 @@ function App() {
   const changeWord = useCallback(
     (direction: 'next' | 'previous') => {
       // 遠征中以外は単語を進めない（105 Encounter を超えない）。
-      if (!isExpeditionRunning(expeditionRef.current)) {
+      // Recall 中は Recall 側のタイマーだけが次へ進める（自動送りとの二重進行を防ぐ）。
+      if (!isExpeditionRunning(expeditionRef.current) || recallStepRef.current !== null) {
         return
       }
 
-      const context = { progress: latestProgressRef.current }
+      const context = { progress: latestProgressRef.current, recallWordIds }
       const nextSession =
         direction === 'next'
           ? advanceEncounter(sessionRef.current, wordIds, context)
@@ -156,12 +176,17 @@ function App() {
       }
       showEncounter(nextSession)
 
+      // Recall の cue 中は英語を読み上げない（reveal で読み上げる）。
+      if (nextSession.current.source === 'recall') {
+        cancelSpeech()
+        return
+      }
       const nextWord = wordById.get(nextSession.current.wordId)
       if (speechEnabled && nextWord !== undefined) {
         speak(nextWord.english)
       }
     },
-    [showEncounter, speechEnabled, speak],
+    [cancelSpeech, showEncounter, speechEnabled, speak],
   )
 
   const beginExpedition = () => {
@@ -201,7 +226,12 @@ function App() {
   }
 
   const requestReencounter = () => {
-    if (!isExpeditionRunning(expeditionRef.current)) {
+    // Recall 自体が特別な接触なので、Recall 中の Attention は受け付けない。
+    if (
+      !isExpeditionRunning(expeditionRef.current) ||
+      recallStepRef.current !== null ||
+      sessionRef.current.current.source === 'recall'
+    ) {
       return
     }
 
@@ -240,18 +270,51 @@ function App() {
   }, [isLooping])
 
   useEffect(() => {
-    if (!isLooping) {
+    intervalSecondsRef.current = intervalSeconds
+  }, [intervalSeconds])
+
+  // Recall 中は通常の自動送りを止める。Recall が終わると、次の語から設定速度で再開する。
+  useEffect(() => {
+    if (!isLooping || recallStep !== null) {
       return
     }
 
     const timerId = window.setInterval(() => changeWord('next'), intervalMilliseconds)
     return () => window.clearInterval(timerId)
-  }, [changeWord, intervalMilliseconds, isLooping])
+  }, [changeWord, intervalMilliseconds, isLooping, recallStep])
+
+  // Recall の進行: cue（英語を隠す）→ reveal（英語を出して読み上げる）→ 次の Encounter。
+  // 自動周回中かどうかに関係なく、Recall が終わったら自動的に通常の Encounter へ戻る。
+  useEffect(() => {
+    if (recallStep === null) {
+      return
+    }
+
+    const timerId = window.setTimeout(() => {
+      const next = nextRecallStep(recallStep, intervalSecondsRef.current)
+      recallStepRef.current = next
+      setRecallStep(next)
+
+      if (next !== null) {
+        const word = wordById.get(sessionRef.current.current.wordId)
+        if (speechEnabled && word !== undefined) {
+          speak(word.english)
+        }
+        return
+      }
+
+      // 105語目が Recall だった場合は進めず、遠征完了の Effect に任せる。
+      changeWord('next')
+    }, recallStep.durationMilliseconds)
+    return () => window.clearTimeout(timerId)
+  }, [changeWord, recallStep, speak, speechEnabled])
 
   // 105語目を他の語と同じ時間（設定速度ぶん）画面に見せてから帰還画面へ切り替える。
+  // 105語目が Recall なら reveal を見せ終えた時点で切り替える（通常語ぶんの待ちを足さない）。
   // Effect はその表示が描画された後に動くため、最後の単語が見えないまま完了することはない。
   useEffect(() => {
-    if (!hasReachedExpeditionLimit(expedition)) {
+    // 105語目が Recall なら、reveal まで見せ終えてから完了へ進む。
+    if (!hasReachedExpeditionLimit(expedition) || recallStep !== null) {
       return
     }
 
@@ -273,9 +336,9 @@ function App() {
 
       expeditionRef.current = nextExpedition
       setExpedition(nextExpedition)
-    }, intervalMilliseconds)
+    }, getCompletionDelayMilliseconds(sessionRef.current.current, intervalMilliseconds))
     return () => window.clearTimeout(timerId)
-  }, [expedition, intervalMilliseconds])
+  }, [expedition, intervalMilliseconds, recallStep])
 
   // Encounterは通し番号ごとに1回だけ記録する。
   // StrictModeでEffectが二重実行されても ref で同じ表示の二重加算を防ぐ。
@@ -374,7 +437,9 @@ function App() {
   // XP 表示は次の語が出る前に消える長さにする（高速周回で残らない）。
   const xpFlashMilliseconds = Math.round(Math.min(700, Math.max(160, intervalMilliseconds * 0.9)))
   const encounterLabel =
-    encounterKind === 'reencounter'
+    encounterKind === 'recall'
+      ? { className: 'is-recall', mark: '', text: 'recall' }
+      : encounterKind === 'reencounter'
       ? { className: 'is-again', mark: '↻', text: 'again' }
       : encounterKind === 'growth'
         ? { className: 'is-growth', mark: '●', text: 'growth' }
@@ -443,25 +508,31 @@ function App() {
               />
             </div>
             <p className="hud-xp" aria-label={`今回の遠征で ${expedition.xp} XP`}>
+              {/* Recall の XP はカード内に reveal で表示する */}
               <span
                 key={session.current.sequence}
                 className={`xp-gain is-${encounterKind}`}
                 style={{ animationDuration: `${xpFlashMilliseconds}ms` }}
                 aria-hidden="true"
               >
-                +{encounterXp}
+                {recallPhase === null ? `+${encounterXp}` : ''}
               </span>
               <span className="numeral">{formatNumber(expedition.xp)}</span> XP
             </p>
           </header>
 
-          <section className="word-card" aria-live="polite">
-            <button
-              type="button"
-              className="reencounter-button"
-              onClick={requestReencounter}
-              aria-label={`${currentWord.english}をもう一度出す`}
-            />
+          <section
+            className={recallPhase === null ? 'word-card' : `word-card is-recall is-${recallPhase}`}
+            aria-live="polite"
+          >
+            {recallPhase === null && (
+              <button
+                type="button"
+                className="reencounter-button"
+                onClick={requestReencounter}
+                aria-label={`${currentWord.english}をもう一度出す`}
+              />
+            )}
 
             <p className="encounter-label">
               {encounterLabel !== null && (
@@ -474,20 +545,35 @@ function App() {
               )}
             </p>
 
-            <div className="word-copy">
-              <h1 className="english">{currentWord.english}</h1>
-              <p className="translation">{currentWord.japanese}</p>
-            </div>
+            {recallPhase === 'cue' ? (
+              // cue: 日本語＋概念Cueだけを見せる。英語・画像・英語の補助文は答えになるので出さない。
+              <div className="word-copy recall-copy">
+                <h1 className="recall-prompt">{currentWord.japanese}</h1>
+                <p className="recall-cue">{currentWord.recallCue}</p>
+              </div>
+            ) : (
+              <div className="word-copy">
+                <h1 className="english">{currentWord.english}</h1>
+                <p className="translation">{currentWord.japanese}</p>
+                {recallPhase === 'reveal' && <p className="recall-cue">{currentWord.recallCue}</p>}
+              </div>
+            )}
 
-            <div className="image-area" role="img" aria-label={currentWord.image.alt}>
-              <span aria-hidden="true">{currentWord.image.placeholder}</span>
-            </div>
+            {recallPhase !== 'cue' && (
+              <div className="image-area" role="img" aria-label={currentWord.image.alt}>
+                <span aria-hidden="true">{currentWord.image.placeholder}</span>
+              </div>
+            )}
 
-            <p className="phrase">{showPhrase ? currentWord.phrase : ''}</p>
+            <p className="phrase">{showPhrase && recallPhase !== 'cue' ? currentWord.phrase : ''}</p>
 
-            <p className="tap-hint" aria-hidden="true">
-              {attentionFeedback === null ? 'タップでもう一度' : ''}
-            </p>
+            {recallPhase === null ? (
+              <p className="tap-hint" aria-hidden="true">
+                {attentionFeedback === null ? 'タップでもう一度' : ''}
+              </p>
+            ) : (
+              <p className="recall-xp">{recallPhase === 'reveal' ? `+${encounterXp} XP` : ''}</p>
+            )}
 
             {attentionFeedback !== null && (
               <p className="reencounter-feedback" role="status">
@@ -502,7 +588,7 @@ function App() {
                 type="button"
                 className="ghost-button"
                 onClick={() => changeWord('previous')}
-                disabled={!isExpeditionRunning(expedition)}
+                disabled={!isExpeditionRunning(expedition) || recallStep !== null}
               >
                 前へ
               </button>
@@ -520,7 +606,7 @@ function App() {
                 type="button"
                 className="ghost-button"
                 onClick={() => changeWord('next')}
-                disabled={!isExpeditionRunning(expedition)}
+                disabled={!isExpeditionRunning(expedition) || recallStep !== null}
               >
                 次へ
               </button>
@@ -576,7 +662,7 @@ function App() {
                   type="button"
                   className="text-toggle"
                   onClick={() => speak(currentWord.english)}
-                  disabled={!speechSupported || !speechEnabled}
+                  disabled={!speechSupported || !speechEnabled || recallPhase === 'cue'}
                   aria-label={`${currentWord.english}を再生`}
                 >
                   再生
@@ -631,6 +717,10 @@ function App() {
                 <span className="mark-again" aria-hidden="true">↻ </span>again
               </dt>
               <dd>{expedition.reencounterCount}</dd>
+            </div>
+            <div>
+              <dt>recall</dt>
+              <dd>{expedition.recallCount}</dd>
             </div>
           </dl>
 
@@ -710,9 +800,13 @@ function App() {
         dev · 単語 {currentIndex + 1}/{words.length} · Encounter {currentProgress.encounterCount} ·
         Attention {currentProgress.attentionCount} · debt {currentProgress.attentionDebt} · 再遭遇予約{' '}
         {session.reencounterQueue.length}
-        {session.current.source === 'reencounter' ? ' · 再遭遇中' : ` · ${session.current.bucket}`}
+        {session.current.source === 'reencounter'
+          ? ' · 再遭遇中'
+          : session.current.source === 'recall'
+            ? ` · recall（${session.current.bucket}）`
+            : ` · ${session.current.bucket}`}
         {expedition.status === 'running' &&
-          ` · F/N/G/R ${expedition.familiarCount}/${expedition.newCount}/${expedition.growthCount}/${expedition.reencounterCount}`}
+          ` · F/N/G/R ${expedition.familiarCount}/${expedition.newCount}/${expedition.growthCount}/${expedition.reencounterCount} · recall ${expedition.recallCount}`}
       </p>
     </main>
   )
