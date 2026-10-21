@@ -99,3 +99,22 @@ export function reserveReencounter(session: EncounterSession, wordId: string): E
     ],
   }
 }
+
+// 遠征開始時に呼ぶ。通常周回の現在位置の単語を新しい Encounter として表示し直す。
+// 前の遠征の再遭遇予約は持ち越さない。
+export function restartEncounter(session: EncounterSession, wordIds: string[]): EncounterSession {
+  return {
+    normalIndex: session.normalIndex,
+    current: {
+      sequence: session.current.sequence + 1,
+      wordId: wordIds[session.normalIndex],
+      source: 'normal',
+    },
+    reencounterQueue: [],
+  }
+}
+
+// 遠征終了時に呼ぶ。未消化の再遭遇予約を破棄する。
+export function clearReencounterQueue(session: EncounterSession): EncounterSession {
+  return { ...session, reencounterQueue: [] }
+}
