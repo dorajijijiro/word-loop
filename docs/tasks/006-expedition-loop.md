@@ -67,9 +67,10 @@ type ExpeditionState = {
 ### Encounter の数え方と終了判定
 - 新しい Encounter を表示する処理を `showEncounter` に集約し、表示と同時に `recordExpeditionEncounter` で1進める。
   - 対象: 遠征開始時の最初の単語、「次へ」、「前へ」、自動周回、再遭遇語の差し込み
-- `recordExpeditionEncounter` は `encounterCount` が `encounterLimit` に達した時点で `status = completed` にし、以降は何も数えない。
-- `changeWord`（自動周回・次へ・前へ）は、遠征中（`isExpeditionRunning`）でなければ何もしない。タイマーが余分に1回発火しても 105 を超えない。
-- 完了時に `setIsLooping(false)` で自動周回を止め、`clearReencounterQueue` で未消化の再遭遇予約を破棄する。
+- `recordExpeditionEncounter` は `encounterCount` が `encounterLimit` に達したら以降は何も数えない。この時点では `status` は `running` のまま（`hasReachedExpeditionLimit` が true）。
+- 上限に達した Encounter を表示した時点で `setIsLooping(false)` で自動周回を止め、`clearReencounterQueue` で未消化の再遭遇予約を破棄する。
+- 105語目は他の語と同じく設定速度ぶん（`intervalMilliseconds`）画面に表示する。その後 Effect のタイマーで `completeExpedition` を呼び `status = completed` にして帰還画面へ切り替える。Effect は描画後に動くため、105語目が見えないまま完了することはない（PR #2 レビューで修正）。
+- `changeWord`（自動周回・次へ・前へ）は、`isExpeditionRunning`（running かつ 105 未満）でなければ何もしない。105語目の表示中もボタンは無効で、105 を超えない。
 - 起動直後（sequence 0）は待機画面で単語を表示しないため、学習進捗の Encounter にも記録しない。開始時は `restartEncounter` で新しい sequence を作るので、学習進捗と遠征の両方に1回ずつ記録される。
 
 ### UI（仮）
@@ -86,6 +87,7 @@ type ExpeditionState = {
   - 遠征開始で `遠征 1 / 105`、現在の単語（apple）から表示
   - 手動で進め、4語目でタップ → 5 Encounter 後に再登場（`sun book car tree water house`）。再遭遇語も1 Encounterとして数えられる
   - 0.2秒/語の自動周回で 105 に到達すると自動停止し、帰還画面に `Encounter 105 / 再遭遇 1`。その後待っても 105 を超えない
+  - 105語目が実際に画面に描画されることを確認（レビュー修正後）：0.25秒/語の自動周回で、`遠征 105 / 105` と105語目の単語カードが約250ms（15フレーム）描画された後に帰還画面へ切り替わる。手動（1秒/語）でも105語目が表示され、その間は前へ・次へ・自動周回が無効、約1秒後に帰還画面
   - 1遠征後の学習進捗の Encounter 合計は 105（StrictMode でも二重加算なし）
   - 帰還 → 「次の遠征を開始」で `遠征 1 / 105` から再開
   - 103 Encounter 目でタップして予約を残したまま 105 に到達 → 遠征終了、再遭遇予約は 0

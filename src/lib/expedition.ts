@@ -35,7 +35,14 @@ export function isExpeditionRunning(expedition: ExpeditionState) {
   return expedition.status === 'running' && expedition.encounterCount < expedition.encounterLimit
 }
 
-// 単語を1つ表示したときに呼ぶ。上限に達したら completed にし、それ以上は数えない。
+// 上限の Encounter を記録済みで、最後の単語を表示している状態。
+// この間は単語を進めず、表示を見せ終えてから completeExpedition で completed にする。
+export function hasReachedExpeditionLimit(expedition: ExpeditionState) {
+  return expedition.status === 'running' && expedition.encounterCount >= expedition.encounterLimit
+}
+
+// 単語を1つ表示したときに呼ぶ。上限に達したら以降は数えない。
+// 上限に達しても status は running のまま（最後の単語を画面に見せるため）。
 export function recordExpeditionEncounter(
   expedition: ExpeditionState,
   source: EncounterSource,
@@ -50,8 +57,16 @@ export function recordExpeditionEncounter(
     ...expedition,
     encounterCount,
     reencounterCount: expedition.reencounterCount + (source === 'reencounter' ? 1 : 0),
-    status: encounterCount >= expedition.encounterLimit ? 'completed' : 'running',
   }
+}
+
+// 最後の単語を表示し終えたときに呼ぶ。
+export function completeExpedition(expedition: ExpeditionState): ExpeditionState {
+  if (!hasReachedExpeditionLimit(expedition)) {
+    return expedition
+  }
+
+  return { ...expedition, status: 'completed' }
 }
 
 // 帰還画面を閉じて待機状態へ戻す。学習進捗には触れない。

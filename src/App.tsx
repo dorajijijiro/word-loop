@@ -10,7 +10,9 @@ import {
   type EncounterSession,
 } from './lib/encounterEngine'
 import {
+  completeExpedition,
   createIdleExpedition,
+  hasReachedExpeditionLimit,
   isExpeditionRunning,
   recordExpeditionEncounter,
   returnFromExpedition,
@@ -108,20 +110,21 @@ function App() {
 
   // 新しい Encounter を表示するたびに遠征の進行度を1進める。
   // 上限に達したら自動周回を止め、未消化の再遭遇予約を破棄する。
+  // 遠征完了（帰還画面）への切り替えは、最後の単語を表示した後に Effect で行う。
   const showEncounter = useCallback((nextSession: EncounterSession) => {
     const nextExpedition = recordExpeditionEncounter(
       expeditionRef.current,
       nextSession.current.source,
     )
-    const settledSession =
-      nextExpedition.status === 'completed' ? clearReencounterQueue(nextSession) : nextSession
+    const reachedLimit = hasReachedExpeditionLimit(nextExpedition)
+    const settledSession = reachedLimit ? clearReencounterQueue(nextSession) : nextSession
 
     expeditionRef.current = nextExpedition
     sessionRef.current = settledSession
     setExpedition(nextExpedition)
     setSession(settledSession)
 
-    if (nextExpedition.status === 'completed') {
+    if (reachedLimit) {
       setIsLooping(false)
     }
   }, [])
@@ -212,6 +215,21 @@ function App() {
     const timerId = window.setInterval(() => changeWord('next'), intervalMilliseconds)
     return () => window.clearInterval(timerId)
   }, [changeWord, intervalMilliseconds, isLooping])
+
+  // 105語目を他の語と同じ時間（設定速度ぶん）画面に見せてから帰還画面へ切り替える。
+  // Effect はその表示が描画された後に動くため、最後の単語が見えないまま完了することはない。
+  useEffect(() => {
+    if (!hasReachedExpeditionLimit(expedition)) {
+      return
+    }
+
+    const timerId = window.setTimeout(() => {
+      const nextExpedition = completeExpedition(expeditionRef.current)
+      expeditionRef.current = nextExpedition
+      setExpedition(nextExpedition)
+    }, intervalMilliseconds)
+    return () => window.clearTimeout(timerId)
+  }, [expedition, intervalMilliseconds])
 
   // Encounterは通し番号ごとに1回だけ記録する。
   // StrictModeでEffectが二重実行されても ref で同じ表示の二重加算を防ぐ。
@@ -416,7 +434,7 @@ function App() {
             type="button"
             className="loop-toggle"
             onClick={() => setIsLooping((looping) => !looping)}
-            disabled={expedition.status !== 'running'}
+            disabled={!isExpeditionRunning(expedition)}
             aria-pressed={isLooping}
           >
             {isLooping ? '停止' : '自動周回を開始'}
@@ -453,14 +471,14 @@ function App() {
           <button
             type="button"
             onClick={() => changeWord('previous')}
-            disabled={expedition.status !== 'running'}
+            disabled={!isExpeditionRunning(expedition)}
           >
             前へ
           </button>
           <button
             type="button"
             onClick={() => changeWord('next')}
-            disabled={expedition.status !== 'running'}
+            disabled={!isExpeditionRunning(expedition)}
           >
             次へ
           </button>
