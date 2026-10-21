@@ -3,13 +3,13 @@
 // 再遭遇は 9:1 比率の外側として扱い、比率の計算には含めない。
 import type { LearningProgressMap } from './learningProgress.ts'
 import {
-  addBucketCount,
+  addTrackCount,
   classifyWord,
-  createBucketCounts,
+  createTrackCounts,
   selectNormalWord,
-  type BucketCounts,
   type LearningBucket,
   type RandomSource,
+  type TrackCounts,
 } from './wordSelector.ts'
 
 // タップした単語を何Encounter後に再登場させるか（MVPでは固定値）。
@@ -40,10 +40,12 @@ export type EncounterSession = {
   history: string[]
   // 予約順に並ぶ。dueSequence も予約順に単調増加する。
   reencounterQueue: ReencounterReservation[]
-  // この遠征の通常選出で狙った bucket の回数（9:1 の比率計算用）。
-  plannedCounts: BucketCounts
+  // この遠征の通常選出で狙った枠（familiar / learning）の回数（9:1 の比率計算用）。
+  plannedCounts: TrackCounts
   // 最後に通常選出・「前へ」で表示した語（再開位置の保存用）。
   lastNormalWordId: string
+  // Attention を記録済みの Encounter の通し番号。同じ表示中の連打を1回にまとめる。
+  attentionSequence: number | null
 }
 
 // 選出時に参照する最新の学習進捗と乱数関数。
@@ -55,11 +57,12 @@ export type SelectionContext = {
 export function createEncounterSession(wordIds: string[], startWordId: string): EncounterSession {
   const wordId = wordIds.includes(startWordId) ? startWordId : wordIds[0]
   return {
-    current: { sequence: 0, wordId, source: 'normal', bucket: 'growth' },
+    current: { sequence: 0, wordId, source: 'normal', bucket: 'new' },
     history: [],
     reencounterQueue: [],
-    plannedCounts: createBucketCounts(),
+    plannedCounts: createTrackCounts(),
     lastNormalWordId: wordId,
+    attentionSequence: null,
   }
 }
 
@@ -89,7 +92,7 @@ const selectNormalEncounter = (
       source: 'normal',
       bucket: selection.bucket,
     },
-    plannedCounts: addBucketCount(session.plannedCounts, selection.plannedBucket),
+    plannedCounts: addTrackCount(session.plannedCounts, selection.plannedTrack),
     lastNormalWordId: selection.wordId,
   }
 }
@@ -169,6 +172,23 @@ export function reserveReencounter(session: EncounterSession, wordId: string): E
   }
 }
 
+export type AttentionResult = {
+  session: EncounterSession
+  // この Encounter で初めての Attention なら true。true のときだけ学習進捗（attentionDebt など）を更新する。
+  isFirstAttention: boolean
+}
+
+// 表示中のカードをタップしたときに呼ぶ。再遭遇を予約し、同じ Encounter の連打は1回として扱う。
+export function registerAttention(session: EncounterSession): AttentionResult {
+  const isFirstAttention = session.attentionSequence !== session.current.sequence
+  const reserved = reserveReencounter(session, session.current.wordId)
+
+  return {
+    session: isFirstAttention ? { ...reserved, attentionSequence: session.current.sequence } : reserved,
+    isFirstAttention,
+  }
+}
+
 // 遠征開始時に呼ぶ。履歴・比率・再遭遇予約をリセットし、最初の語を 9:1 で選ぶ。
 // 前の遠征の最後の語（session.current）とは連続しないようにする。
 export function startEncounter(
@@ -180,7 +200,7 @@ export function startEncounter(
     ...session,
     history: [],
     reencounterQueue: [],
-    plannedCounts: createBucketCounts(),
+    plannedCounts: createTrackCounts(),
   }
 
   return { ...resetSession, ...selectNormalEncounter(resetSession, wordIds, context) }

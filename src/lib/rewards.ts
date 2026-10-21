@@ -3,16 +3,19 @@
 // EncounterRewardInput に判定材料を足し、calculateEncounterXp の中だけを変更する。
 import type { Encounter } from './encounterEngine.ts'
 
-export type EncounterRewardKind = 'familiar' | 'growth' | 'reencounter'
+export type EncounterRewardKind = 'familiar' | 'new' | 'growth' | 'reencounter'
 
 export const encounterXpTable: Record<EncounterRewardKind, number> = {
   familiar: 1,
+  // new は暫定的に growth と同じ。報酬バランスは後で調整する。
+  new: 5,
   growth: 5,
   reencounter: 10,
 }
 
 export const returnBaseGold = 100
-export const growthEncounterGold = 2
+// new / growth（learning 枠）の Encounter 1回あたりの Gold。
+export const learningEncounterGold = 2
 export const reencounterGold = 5
 
 export type EncounterRewardInput = {
@@ -21,6 +24,7 @@ export type EncounterRewardInput = {
 
 export type ExpeditionResultCounts = {
   familiarCount: number
+  newCount: number
   growthCount: number
   reencounterCount: number
 }
@@ -49,7 +53,7 @@ export function calculateReturnGold(counts: ExpeditionResultCounts, completed: b
 
   return (
     returnBaseGold +
-    counts.growthCount * growthEncounterGold +
+    (counts.newCount + counts.growthCount) * learningEncounterGold +
     counts.reencounterCount * reencounterGold
   )
 }

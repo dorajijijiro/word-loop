@@ -4,17 +4,18 @@ import {
   advanceEncounter,
   createEncounterSession,
   reencounterDelay,
+  registerAttention,
   reserveReencounter,
   retreatEncounter,
   startEncounter,
   type EncounterSession,
 } from '../src/lib/encounterEngine.ts'
 import type { LearningProgressMap } from '../src/lib/learningProgress.ts'
-import { seededRandom } from './helpers.ts'
+import { seededRandom, wordProgress } from './helpers.ts'
 
 const wordIds = Array.from({ length: 20 }, (_, index) => `w${index}`)
 const familiarProgress: LearningProgressMap = Object.fromEntries(
-  wordIds.map((wordId) => [wordId, { wordId, encounterCount: 5, attentionCount: 0, lastEncounteredAt: null }]),
+  wordIds.map((wordId) => [wordId, wordProgress(wordId, { encounterCount: 5 })]),
 )
 
 test('再遭遇優先: 期限が来た予約は 9:1 選出より先に出る', () => {
@@ -36,7 +37,7 @@ test('再遭遇優先: 期限が来た予約は 9:1 選出より先に出る', (
   assert.equal(last?.source, 'reencounter')
   assert.equal(session.reencounterQueue.length, 0)
   // 再遭遇は 9:1 比率の計算に含めない
-  assert.equal(session.plannedCounts.familiar + session.plannedCounts.growth, reencounterDelay)
+  assert.equal(session.plannedCounts.familiar + session.plannedCounts.learning, reencounterDelay)
 })
 
 test('再遭遇語が表示中の語と同じなら1つ後ろへずらして連続を避ける', () => {
@@ -93,5 +94,36 @@ test('遠征開始で再遭遇予約・比率・履歴をリセットする', ()
   const restarted = startEncounter(session, wordIds, context)
   assert.deepEqual(restarted.reencounterQueue, [])
   assert.deepEqual(restarted.history, [])
-  assert.equal(restarted.plannedCounts.familiar + restarted.plannedCounts.growth, 1)
+  assert.equal(restarted.plannedCounts.familiar + restarted.plannedCounts.learning, 1)
+})
+
+test('Attention: 同じ Encounter の連打は1回として数え、次の Encounter では再び数える', () => {
+  const context = { progress: familiarProgress, random: seededRandom(4) }
+  let session = startEncounter(createEncounterSession(wordIds, 'w0'), wordIds, context)
+
+  const first = registerAttention(session)
+  const second = registerAttention(first.session)
+  assert.equal(first.isFirstAttention, true)
+  assert.equal(second.isFirstAttention, false)
+  assert.equal(second.session.reencounterQueue.length, 1)
+
+  session = advanceEncounter(second.session, wordIds, context)
+  assert.equal(registerAttention(session).isFirstAttention, true)
+})
+
+test('再遭遇の表示 bucket は最新の progress で判定する', () => {
+  const tapped = 'w3'
+  let session = startEncounter(createEncounterSession(wordIds, 'w0'), wordIds, {
+    progress: familiarProgress,
+    random: seededRandom(6),
+  })
+  session = { ...session, reencounterQueue: [{ wordId: tapped, dueSequence: session.current.sequence + 1 }] }
+  if (session.current.wordId === tapped) {
+    session = { ...session, current: { ...session.current, wordId: 'w4' } }
+  }
+
+  const progress = { ...familiarProgress, [tapped]: wordProgress(tapped, { encounterCount: 5, attentionDebt: 1 }) }
+  const next = advanceEncounter(session, wordIds, { progress, random: seededRandom(6) })
+  assert.equal(next.current.source, 'reencounter')
+  assert.equal(next.current.bucket, 'growth')
 })
