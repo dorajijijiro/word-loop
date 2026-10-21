@@ -71,7 +71,11 @@ test('105 Encounter 上限: 105 で止まり、完了時に報酬が確定する
 
   assert.equal(expedition.encounterCount, expeditionEncounterLimit)
   assert.equal(
-    expedition.familiarCount + expedition.newCount + expedition.growthCount + expedition.reencounterCount,
+    expedition.familiarCount +
+      expedition.newCount +
+      expedition.growthCount +
+      expedition.reencounterCount +
+      expedition.recallCount,
     expeditionEncounterLimit,
   )
   assert.ok(expedition.reencounterCount > 0)
@@ -82,14 +86,14 @@ test('105 Encounter 上限: 105 で止まり、完了時に報酬が確定する
   assert.equal(hasReachedExpeditionLimit(expedition), true)
   assert.equal(
     expedition.xp,
-    expedition.familiarCount + learning * 5 + expedition.reencounterCount * 10,
+    expedition.familiarCount + learning * 5 + (expedition.reencounterCount + expedition.recallCount) * 10,
   )
 
   const completed = completeExpedition(expedition)
   assert.equal(completed.status, 'completed')
   assert.deepEqual(completed.rewards, {
     xp: expedition.xp,
-    gold: 100 + learning * 2 + expedition.reencounterCount * 5,
+    gold: 100 + learning * 2 + (expedition.reencounterCount + expedition.recallCount) * 5,
   })
   // 二重に完了しない
   assert.equal(completeExpedition(completed), completed)
@@ -134,7 +138,7 @@ const simulateExpedition = (
   return { expedition, progress }
 }
 
-test('遠征: 初回は全語 new から始まり、familiar / new / growth / again の合計が Encounter 数と一致する', () => {
+test('遠征: 初回は全語 new から始まり、familiar / new / growth / again / recall の合計が Encounter 数と一致する', () => {
   const wordIds = Array.from({ length: 20 }, (_, index) => `w${index}`)
   const tappedOnce = new Set<string>()
   const { expedition, progress } = simulateExpedition(wordIds, {}, 21, (wordId, index) => {
@@ -148,7 +152,11 @@ test('遠征: 初回は全語 new から始まり、familiar / new / growth / ag
 
   assert.equal(expedition.encounterCount, expeditionEncounterLimit)
   assert.equal(
-    expedition.familiarCount + expedition.newCount + expedition.growthCount + expedition.reencounterCount,
+    expedition.familiarCount +
+      expedition.newCount +
+      expedition.growthCount +
+      expedition.reencounterCount +
+      expedition.recallCount,
     expedition.encounterCount,
   )
   assert.ok(expedition.newCount > 0, 'new が出る')
@@ -163,7 +171,7 @@ test('遠征: 初回は全語 new から始まり、familiar / new / growth / ag
     expedition.xp,
     expedition.familiarCount +
       (expedition.newCount + expedition.growthCount) * 5 +
-      expedition.reencounterCount * 10,
+      (expedition.reencounterCount + expedition.recallCount) * 10,
   )
 
   // 2回目の遠征は familiar 中心の 9:1 に近づく
@@ -173,7 +181,8 @@ test('遠征: 初回は全語 new から始まり、familiar / new / growth / ag
     second.expedition.familiarCount +
       second.expedition.newCount +
       second.expedition.growthCount +
-      second.expedition.reencounterCount,
+      second.expedition.reencounterCount +
+      second.expedition.recallCount,
     expeditionEncounterLimit,
   )
 })
