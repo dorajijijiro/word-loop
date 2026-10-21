@@ -12,6 +12,7 @@ import {
 import {
   completeExpedition,
   createIdleExpedition,
+  getCompletionDelayMilliseconds,
   hasReachedExpeditionLimit,
   isExpeditionRunning,
   recordExpeditionEncounter,
@@ -309,6 +310,7 @@ function App() {
   }, [changeWord, recallStep, speak, speechEnabled])
 
   // 105語目を他の語と同じ時間（設定速度ぶん）画面に見せてから帰還画面へ切り替える。
+  // 105語目が Recall なら reveal を見せ終えた時点で切り替える（通常語ぶんの待ちを足さない）。
   // Effect はその表示が描画された後に動くため、最後の単語が見えないまま完了することはない。
   useEffect(() => {
     // 105語目が Recall なら、reveal まで見せ終えてから完了へ進む。
@@ -334,7 +336,7 @@ function App() {
 
       expeditionRef.current = nextExpedition
       setExpedition(nextExpedition)
-    }, intervalMilliseconds)
+    }, getCompletionDelayMilliseconds(sessionRef.current.current, intervalMilliseconds))
     return () => window.clearTimeout(timerId)
   }, [expedition, intervalMilliseconds, recallStep])
 

@@ -11,6 +11,8 @@ import { recordEncounter, type LearningProgressMap } from '../src/lib/learningPr
 import {
   completeExpedition,
   expeditionEncounterLimit,
+  getCompletionDelayMilliseconds,
+  hasReachedExpeditionLimit,
   isExpeditionRunning,
   recordExpeditionEncounter,
   startExpedition,
@@ -319,4 +321,44 @@ test('Word データ: 20語すべてに1〜2行の短い Recall Cue があり、
     // Cue 中に答え（英語）を見せない
     assert.ok(!/[A-Za-z]/.test(cue), word.id)
   }
+})
+
+test('105語目が Recall: reveal を見せ終えたら通常語ぶんの待ちを足さずに完了する', () => {
+  const random = seededRandom(31)
+  const context = { progress: mixedProgress, random }
+  let session = startEncounter(createEncounterSession(wordIds, 'w0'), wordIds, context)
+  // 105語目だけを Recall の予定にする
+  session = { ...session, recallSchedule: [session.current.sequence + expeditionEncounterLimit - 1] }
+  let expedition = recordExpeditionEncounter(startExpedition(), session.current)
+  while (isExpeditionRunning(expedition)) {
+    session = advanceEncounter(session, wordIds, context)
+    expedition = recordExpeditionEncounter(expedition, session.current)
+  }
+
+  const last = session.current
+  assert.equal(last.source, 'recall')
+  assert.equal(expedition.encounterCount, expeditionEncounterLimit)
+  assert.equal(expedition.recallCount, 1)
+  assert.equal(hasReachedExpeditionLimit(expedition), true)
+
+  // 105語目を表示してから完了までの時間 = cue + reveal（+ 完了待ち 0）
+  for (const intervalSeconds of [0.25, 1, 3]) {
+    const cue = startRecallStep(last.sequence, intervalSeconds)
+    const reveal = nextRecallStep(cue, intervalSeconds)
+    assert.ok(reveal !== null)
+    assert.equal(nextRecallStep(reveal, intervalSeconds), null)
+    const total =
+      cue.durationMilliseconds +
+      reveal.durationMilliseconds +
+      getCompletionDelayMilliseconds(last, intervalSeconds * 1000)
+    assert.equal(total, getRecallCueMilliseconds(intervalSeconds) + getRecallRevealMilliseconds(intervalSeconds))
+  }
+  // 3秒/語でも reveal 後 1.2 秒で完了（余分な 3 秒は入らない）
+  assert.equal(getRecallRevealMilliseconds(3) + getCompletionDelayMilliseconds(last, 3000), 1200)
+})
+
+test('105語目が通常 Encounter なら従来どおり設定速度ぶん見せてから完了する', () => {
+  assert.equal(getCompletionDelayMilliseconds({ source: 'normal' }, 3000), 3000)
+  assert.equal(getCompletionDelayMilliseconds({ source: 'reencounter' }, 250), 250)
+  assert.equal(getCompletionDelayMilliseconds({ source: 'recall' }, 3000), 0)
 })

@@ -121,7 +121,7 @@ type Encounter = { sequence; wordId; source; bucket }
 - Recall 側の `setTimeout` が cue → reveal → 次の Encounter を進め、終わったら `recallStep = null` に戻して通常の自動周回を再開する（次の語から設定速度ぶん表示）。
 - 自動周回を止めている（手動操作）ときも、Recall は自動で次の Encounter へ進む。
 - Recall 中は「前へ」「次へ」を無効にする。自動周回の停止ボタンは使える（Recall を見せ終えたあと止まる）。
-- 105語目が Recall だった場合は reveal まで見せてから遠征完了へ進む（完了の Effect も `recallStep` を待つ）。
+- 105語目が Recall だった場合は reveal まで見せてから遠征完了へ進む（完了の Effect も `recallStep` を待つ）。reveal が終わったら通常語ぶんの待ち（設定速度）は足さずにすぐ完了する（`getCompletionDelayMilliseconds`: Recall は 0、通常語は従来どおり設定速度ぶん）。
 - Recall 中（cue / reveal とも）はカードタップの Attention を受け付けない（タップ用の透明ボタン自体を出さない）。Recall 自体が特別な接触のため。
 
 ## 音声
@@ -154,14 +154,15 @@ encounters 105 = familiar + new + growth + again + recall
 ```
 遠征完了画面に `recall` を追加し、内訳を3列 × 2段にした。dev 行にも `recall n` を表示する。
 
-## テスト（`npm test`、55件）
-既存38件は維持（`tests/rewards.test.ts` の内訳合計・XP・Gold の式に recall を足した）。`tests/recall.test.ts` に17件を追加。
+## テスト（`npm test`、57件）
+既存38件は維持（`tests/rewards.test.ts` の内訳合計・XP・Gold の式に recall を足した）。`tests/recall.test.ts` に19件を追加。
 
 - Recall scheduling: 1遠征最大4回で各区間に分散（5シード）、予定位置がランダムに揺らぐ、growth 優先、growth を Recall し終えたら new も候補、familiar と未遭遇語は対象外、familiar のみなら Recall 0回でも105で完了、同じ語を重複 Recall しない（候補1語なら重複を許す・直前の語は出さない）
 - Encounter: Re-encounter が Recall より優先され Recall は次へずれる、Recall が通常選出より優先され 9:1 比率に含めない、候補なしなら見送って通常選出、Recall でも sequence が1ずつ増え105を超えない
 - State: Recall でも encounterCount +1・attentionDebt −1、Recall だけで familiar に昇格しない
 - Rewards: Recall XP 10・元 bucket に数えない・二重加算なし・Gold、遠征集計の合計 = 105 と XP の一致
 - Cue / Reveal: cue → reveal → 終了の遷移、速度ごとの想起時間
+- 105語目が Recall: 表示から完了まで cue + reveal のみ（3秒/語でも reveal 後 1.2 秒で完了し、余分な interval が入らない）。105語目が通常語なら従来どおり設定速度ぶん待つ
 - Word データ: 20語すべてに1〜2行の Cue があり英字を含まない
 
 `npm run lint`、`npm run build` も成功。
@@ -180,7 +181,8 @@ DOM の変化を MutationObserver で時刻付きに記録し、speechSynthesis 
 9. 帰還 → 次の遠征も同様に動作
 10. 手動操作（自動周回 OFF）で「次へ」を押して Recall に入ると、「次へ」が無効・タップ不可になり、cue → reveal の後に自動で1つだけ進む
 11. 3回目の遠征（全語 familiar）では Recall 0回で問題なく進行
-12. ダークモードでも cue / reveal が静かに表示される。コンソールエラーなし。localStorage のキーは従来の3つのみ
+12. 105語目が Recall の場合（確認用に一時的に Recall 位置を105へ変更し、Playwright の clock で3秒/語を早送り）: cue 1.5秒 → reveal 1.2秒 → 直後に遠征完了（約2.7秒）。通常語ぶんの3秒は追加されない
+13. ダークモードでも cue / reveal が静かに表示される。コンソールエラーなし。localStorage のキーは従来の3つのみ
 
 スクリーンショットはプロジェクトファイルの `milestone-d/` に保存。
 

@@ -97,6 +97,16 @@ export function recordExpeditionEncounter(
   }
 }
 
+// 上限に達してから遠征完了へ切り替えるまでの待ち時間。
+// 通常の語は他の語と同じ時間（設定速度ぶん）見せてから完了する。
+// Recall は cue → reveal の表示時間を Recall 側で消化済みなので、reveal が終わったらすぐ完了する。
+export function getCompletionDelayMilliseconds(
+  lastEncounter: Pick<Encounter, 'source'>,
+  intervalMilliseconds: number,
+): number {
+  return lastEncounter.source === 'recall' ? 0 : intervalMilliseconds
+}
+
 // 最後の単語を表示し終えたときに呼ぶ。ここで今回の報酬が確定する。
 export function completeExpedition(expedition: ExpeditionState): ExpeditionState {
   if (!hasReachedExpeditionLimit(expedition)) {
