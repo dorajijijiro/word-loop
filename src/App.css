@@ -244,7 +244,7 @@
 .breakdown {
   display: grid;
   gap: 6px;
-  grid-template-columns: repeat(4, auto);
+  grid-template-columns: repeat(5, auto);
   justify-content: space-between;
 }
 
@@ -378,6 +378,10 @@
   color: var(--muted);
 }
 
+.xp-gain.is-new {
+  color: var(--ink-soft);
+}
+
 .xp-gain.is-growth {
   color: var(--accent);
 }
@@ -438,6 +442,12 @@
   height: 1.2rem;
   letter-spacing: 0.1em;
   line-height: 1.2rem;
+}
+
+/* new は「まだ観測が少ない」だけなので、アクセント色を使わず静かに出す */
+.encounter-label .is-new {
+  color: var(--muted);
+  font-weight: 500;
 }
 
 .encounter-label .is-growth {

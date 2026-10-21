@@ -4,7 +4,7 @@ import {
   advanceEncounter,
   clearReencounterQueue,
   createEncounterSession,
-  reserveReencounter,
+  registerAttention,
   retreatEncounter,
   startEncounter,
   type EncounterSession,
@@ -77,7 +77,6 @@ function App() {
   const playerProgressRef = useRef<PlayerProgress>(playerProgress)
   // 起動直後（sequence 0）は待機画面で単語を表示しないため、記録済みとして扱う。
   const recordedSequenceRef = useRef<number | undefined>(session.current.sequence)
-  const attentionSequenceRef = useRef<number | undefined>(undefined)
   const feedbackTimerRef = useRef<number | undefined>(undefined)
   const pendingProgressSaveRef = useRef<number | undefined>(undefined)
   const latestProgressRef = useRef<LearningProgressMap>(progress)
@@ -206,19 +205,18 @@ function App() {
       return
     }
 
-    const encounter = sessionRef.current.current
-    const word = wordById.get(encounter.wordId)
+    const word = wordById.get(sessionRef.current.current.wordId)
     if (word === undefined) {
       return
     }
 
-    // 同じ表示中の連打は1回の意思表示として数える。
-    if (attentionSequenceRef.current !== encounter.sequence) {
-      attentionSequenceRef.current = encounter.sequence
-      setProgress((current) => recordAttention(current, word.id))
+    // 同じ表示中の連打は1回の意思表示として数える（attentionDebt を二重に増やさない）。
+    const { session: nextSession, isFirstAttention } = registerAttention(sessionRef.current)
+    if (isFirstAttention) {
+      const attendedAt = new Date().toISOString()
+      setProgress((current) => recordAttention(current, word.id, attendedAt))
     }
 
-    const nextSession = reserveReencounter(sessionRef.current, word.id)
     sessionRef.current = nextSession
     setSession(nextSession)
 
@@ -380,7 +378,9 @@ function App() {
       ? { className: 'is-again', mark: '↻', text: 'again' }
       : encounterKind === 'growth'
         ? { className: 'is-growth', mark: '●', text: 'growth' }
-        : null
+        : encounterKind === 'new'
+          ? { className: 'is-new', mark: '', text: 'new' }
+          : null
 
   return (
     <main className={`word-loop is-${expedition.status}`}>
@@ -466,7 +466,10 @@ function App() {
             <p className="encounter-label">
               {encounterLabel !== null && (
                 <span className={encounterLabel.className}>
-                  <span aria-hidden="true">{encounterLabel.mark}</span> {encounterLabel.text}
+                  {encounterLabel.mark !== '' && (
+                    <span aria-hidden="true">{encounterLabel.mark} </span>
+                  )}
+                  {encounterLabel.text}
                 </span>
               )}
             </p>
@@ -614,6 +617,10 @@ function App() {
               <dd>{expedition.familiarCount}</dd>
             </div>
             <div>
+              <dt>new</dt>
+              <dd>{expedition.newCount}</dd>
+            </div>
+            <div>
               <dt>
                 <span className="mark-growth" aria-hidden="true">● </span>growth
               </dt>
@@ -701,10 +708,11 @@ function App() {
 
       <p className="dev-stats" aria-label="開発確認用の表示">
         dev · 単語 {currentIndex + 1}/{words.length} · Encounter {currentProgress.encounterCount} ·
-        Attention {currentProgress.attentionCount} · 再遭遇予約 {session.reencounterQueue.length}
+        Attention {currentProgress.attentionCount} · debt {currentProgress.attentionDebt} · 再遭遇予約{' '}
+        {session.reencounterQueue.length}
         {session.current.source === 'reencounter' ? ' · 再遭遇中' : ` · ${session.current.bucket}`}
         {expedition.status === 'running' &&
-          ` · F/G/R ${expedition.familiarCount}/${expedition.growthCount}/${expedition.reencounterCount}`}
+          ` · F/N/G/R ${expedition.familiarCount}/${expedition.newCount}/${expedition.growthCount}/${expedition.reencounterCount}`}
       </p>
     </main>
   )

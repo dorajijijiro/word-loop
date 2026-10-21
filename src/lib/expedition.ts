@@ -20,8 +20,9 @@ export type ExpeditionState = {
   encounterCount: number
   encounterLimit: number
   status: ExpeditionStatus
-  // encounterCount の内訳。familiar + growth + reencounter = encounterCount。
+  // encounterCount の内訳。familiar + new + growth + reencounter = encounterCount。
   familiarCount: number
+  newCount: number
   growthCount: number
   reencounterCount: number
   // この遠征で獲得した XP（Encounter ごとに加算）。
@@ -38,6 +39,7 @@ export function createIdleExpedition(): ExpeditionState {
     encounterLimit: expeditionEncounterLimit,
     status: 'idle',
     familiarCount: 0,
+    newCount: 0,
     growthCount: 0,
     reencounterCount: 0,
     xp: 0,
@@ -82,6 +84,7 @@ export function recordExpeditionEncounter(
     ...expedition,
     encounterCount: expedition.encounterCount + 1,
     familiarCount: expedition.familiarCount + (kind === 'familiar' ? 1 : 0),
+    newCount: expedition.newCount + (kind === 'new' ? 1 : 0),
     growthCount: expedition.growthCount + (kind === 'growth' ? 1 : 0),
     reencounterCount: expedition.reencounterCount + (kind === 'reencounter' ? 1 : 0),
     xp: expedition.xp + calculateEncounterXp({ kind }),
