@@ -184,6 +184,29 @@ test('familiar 枠に new を混ぜる最低語数は語彙数に応じて増え
   assert.equal(getMinimumFamiliarPool(15000), 30)
 })
 
+test('境界値: 最低語数の切り替わり（53語→8、54語→9、193語→29、194語→30）', () => {
+  assert.equal(getMinimumFamiliarPool(0), 8)
+  assert.equal(getMinimumFamiliarPool(53), 8)
+  assert.equal(getMinimumFamiliarPool(54), 9)
+  assert.equal(getMinimumFamiliarPool(193), 29)
+  assert.equal(getMinimumFamiliarPool(194), 30)
+})
+
+test('境界値: 語彙200語で familiar 29語なら familiar 枠に new が入り、30語ちょうどなら familiar だけから選ぶ', () => {
+  const wordIds = Array.from({ length: 200 }, (_, index) => `w${index}`)
+  // 0.99 固定: familiar 枠を狙い、候補の末尾（混ぜた場合は new の語）を選ぶ
+  const random = () => 0.99
+  const select = (familiarCount: number) =>
+    selectNormalWord({
+      wordIds,
+      progress: progressOf(wordIds.slice(0, familiarCount).map((id) => [id, 3, 0])),
+      plannedCounts: createTrackCounts(),
+      random,
+    })
+  assert.deepEqual([select(29).plannedTrack, select(29).bucket], ['familiar', 'new'])
+  assert.deepEqual([select(30).plannedTrack, select(30).bucket], ['familiar', 'familiar'])
+})
+
 test('語彙200語: familiar が10語だけの間は familiar 枠に new を混ぜ、その10語ばかりを繰り返さない', () => {
   const wordIds = Array.from({ length: 200 }, (_, index) => `w${index}`)
   // 10語だけ familiar、50語は1回見た new、残りは未遭遇
