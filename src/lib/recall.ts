@@ -5,6 +5,12 @@ import type { LearningProgressMap } from './learningProgress.ts'
 import { getWordProgress } from './learningProgress.ts'
 import { classifyWord, type LearningBucket, type RandomSource } from './wordSelector.ts'
 
+// 遠征で Recall を選出・実行するか（Task 014 で無効化）。
+// 英語を隠す cue 段階をなくし、英語・日本語・画像をテンポよく見る体験に集中するため。
+// 選出・進行のロジックは残している。カードの cue / reveal 表示は Task 014 で外したので、
+// 再び有効にする場合は表示も戻す必要がある。
+export const recallEnabledInExpedition = false
+
 // 1遠征で発生させる Recall の最大回数。候補が足りなければ少なくなる（0回でもよい）。
 export const recallMaxPerExpedition = 4
 

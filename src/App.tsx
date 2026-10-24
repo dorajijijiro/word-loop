@@ -41,7 +41,12 @@ import {
 } from './lib/playerProgress'
 import { getLevelChange, getLevelProgress, type LevelProgress } from './lib/level'
 import { calculateEncounterXp, getEncounterRewardKind } from './lib/rewards'
-import { nextRecallStep, startRecallStep, type RecallStep } from './lib/recall'
+import {
+  nextRecallStep,
+  recallEnabledInExpedition,
+  startRecallStep,
+  type RecallStep,
+} from './lib/recall'
 import './App.css'
 
 const speedPresets = [
@@ -165,7 +170,11 @@ function App() {
         return
       }
 
-      const context = { progress: latestProgressRef.current, recallWordIds }
+      const context = {
+        progress: latestProgressRef.current,
+        recallWordIds,
+        recallEnabled: recallEnabledInExpedition,
+      }
       const nextSession =
         direction === 'next'
           ? advanceEncounter(sessionRef.current, wordIds, context)
@@ -196,6 +205,7 @@ function App() {
     // 開始時点ではなく、最初の単語を表示した時点で1 Encounter目として数える。
     const nextSession = startEncounter(sessionRef.current, wordIds, {
       progress: latestProgressRef.current,
+      recallEnabled: recallEnabledInExpedition,
     })
     showEncounter(nextSession)
 
@@ -546,56 +556,37 @@ function App() {
             </p>
 
             {/*
-              カードは「英語（cue 中は日本語）→ 訳 → Cue → 画像 → 補助文 → ヒント」の高さ固定の行で組む。
-              表示内容や Recall の状態が変わっても行の高さは変わらないので、英語や画像の位置は動かない。
+              カードは「英語 → 訳 → 画像 → 補助文 → ヒント」の高さ固定の行で組む。
+              語の長さ・ラベルの有無・補助文の ON/OFF が変わっても行の高さは変わらないので、英語や画像の位置は動かない。
+              遠征では Recall を出さない（Task 014）ため、英語と日本語は常に同時に表示する。
             */}
             <div className="word-copy">
               <div className="headline">
-                {recallPhase === 'cue' ? (
-                  // cue: 日本語＋概念Cueだけを見せる。英語・画像・英語の補助文は答えになるので出さない。
-                  <h1
-                    className="recall-prompt"
-                    style={{ '--prompt-length': currentWord.japanese.length } as CSSProperties}
-                  >
-                    {currentWord.japanese}
-                  </h1>
-                ) : (
-                  // 長い語・phrase は文字数に応じて縮め、1行に収める
-                  <h1
-                    className="english"
-                    style={{ '--english-length': currentWord.english.length } as CSSProperties}
-                  >
-                    {currentWord.english}
-                  </h1>
-                )}
+                {/* 長い語・phrase は文字数に応じて縮め、1行に収める */}
+                <h1
+                  className="english"
+                  style={{ '--english-length': currentWord.english.length } as CSSProperties}
+                >
+                  {currentWord.english}
+                </h1>
               </div>
-              <p className="translation">{recallPhase === 'cue' ? '' : currentWord.japanese}</p>
-              <p className="recall-cue">{recallPhase === null ? '' : currentWord.recallCue}</p>
+              <p className="translation">{currentWord.japanese}</p>
             </div>
 
-            {recallPhase === 'cue' ? (
-              // 領域だけ確保して見せない（画像は答えのヒントになる）
-              <div className="image-area is-hidden" aria-hidden="true" />
-            ) : (
-              <div className="image-area" role="img" aria-label={currentWord.image.alt}>
-                {currentWord.image.placeholder === neutralImagePlaceholder ? (
-                  // 画像未設定の項目は、どの語でも同じ控えめな図形を出す
-                  <span className="image-placeholder" aria-hidden="true" />
-                ) : (
-                  <span aria-hidden="true">{currentWord.image.placeholder}</span>
-                )}
-              </div>
-            )}
+            <div className="image-area" role="img" aria-label={currentWord.image.alt}>
+              {currentWord.image.placeholder === neutralImagePlaceholder ? (
+                // 画像未設定の項目は、どの語でも同じ控えめな図形を出す
+                <span className="image-placeholder" aria-hidden="true" />
+              ) : (
+                <span aria-hidden="true">{currentWord.image.placeholder}</span>
+              )}
+            </div>
 
-            <p className="phrase">{showPhrase && recallPhase !== 'cue' ? currentWord.phrase : ''}</p>
+            <p className="phrase">{showPhrase ? currentWord.phrase : ''}</p>
 
-            {recallPhase === null ? (
-              <p className="tap-hint" aria-hidden="true">
-                {attentionFeedback === null ? 'タップでもう一度' : ''}
-              </p>
-            ) : (
-              <p className="recall-xp">{recallPhase === 'reveal' ? `+${encounterXp} XP` : ''}</p>
-            )}
+            <p className="tap-hint" aria-hidden="true">
+              {attentionFeedback === null ? 'タップでもう一度' : ''}
+            </p>
 
             {attentionFeedback !== null && (
               <p className="reencounter-feedback" role="status">
@@ -740,10 +731,6 @@ function App() {
               </dt>
               <dd>{expedition.reencounterCount}</dd>
             </div>
-            <div>
-              <dt>recall</dt>
-              <dd>{expedition.recallCount}</dd>
-            </div>
           </dl>
 
           <button type="button" className="primary-button" onClick={finishExpedition}>
@@ -822,13 +809,9 @@ function App() {
         dev · 単語 {currentIndex + 1}/{words.length} · Encounter {currentProgress.encounterCount} ·
         Attention {currentProgress.attentionCount} · debt {currentProgress.attentionDebt} · 再遭遇予約{' '}
         {session.reencounterQueue.length}
-        {session.current.source === 'reencounter'
-          ? ' · 再遭遇中'
-          : session.current.source === 'recall'
-            ? ` · recall（${session.current.bucket}）`
-            : ` · ${session.current.bucket}`}
+        {session.current.source === 'reencounter' ? ' · 再遭遇中' : ` · ${session.current.bucket}`}
         {expedition.status === 'running' &&
-          ` · F/N/G/R ${expedition.familiarCount}/${expedition.newCount}/${expedition.growthCount}/${expedition.reencounterCount} · recall ${expedition.recallCount}`}
+          ` · F/N/G/R ${expedition.familiarCount}/${expedition.newCount}/${expedition.growthCount}/${expedition.reencounterCount}`}
       </p>
     </main>
   )

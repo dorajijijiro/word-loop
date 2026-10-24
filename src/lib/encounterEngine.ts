@@ -59,6 +59,8 @@ export type SelectionContext = {
   random?: RandomSource
   // Recall Cue を持つ語。省略時は wordIds 全体。
   recallWordIds?: string[]
+  // false なら遠征で Recall を予定しない（予定がないので選出も実行もされない）。省略時は true。
+  recallEnabled?: boolean
 }
 
 export function createEncounterSession(wordIds: string[], startWordId: string): EncounterSession {
@@ -240,9 +242,10 @@ export function startEncounter(
   }
   const first = selectNormalEncounter(resetSession, wordIds, context)
   // 遠征の1 Encounter 目が first.current.sequence。
-  const recallSchedule = planRecallPositions(context.random).map(
-    (position) => first.current.sequence + position - 1,
-  )
+  const recallSchedule =
+    context.recallEnabled === false
+      ? []
+      : planRecallPositions(context.random).map((position) => first.current.sequence + position - 1)
 
   return { ...resetSession, ...first, recallSchedule }
 }

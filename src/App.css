@@ -241,7 +241,7 @@
   width: 100%;
 }
 
-/* encounters / familiar / new と growth / again / recall の2段 */
+/* encounters / familiar / new と growth / again の2段 */
 .breakdown {
   display: grid;
   gap: 14px 6px;
@@ -462,7 +462,7 @@
   color: var(--again);
 }
 
-/* 各行は高さ固定。中身（語の長さ・訳の有無・Recall の状態）が変わっても位置が動かない。 */
+/* 各行は高さ固定。中身（語の長さ・ラベルの有無・補助文の ON/OFF）が変わっても位置が動かない。 */
 .word-copy {
   display: grid;
   gap: 6px;
@@ -470,7 +470,7 @@
   width: 100%;
 }
 
-/* 英語（Recall の cue 中は日本語）を置く行。最大の文字サイズ1行分の高さで固定し、中央にそろえる。 */
+/* 英語を置く行。最大の文字サイズ1行分の高さで固定し、中央にそろえる。 */
 .headline {
   align-items: center;
   display: flex;
@@ -519,11 +519,6 @@
   line-height: 1;
 }
 
-/* Recall の cue 中は、画像の場所だけ確保して見せない */
-.image-area.is-hidden {
-  visibility: hidden;
-}
-
 /* 画像未設定の項目に共通で出す、意味を持たない控えめな図形（文字や絵文字は使わない） */
 .image-area .image-placeholder {
   background: var(--line);
@@ -558,50 +553,6 @@
   pointer-events: none;
   position: absolute;
   right: 0;
-}
-
-/* ---------- Recall Encounter ---------- */
-/* 通常の Encounter と同じ静かなトーンにする。クイズらしい色・枠・番号は使わない。 */
-.encounter-label .is-recall {
-  color: var(--muted);
-  font-weight: 500;
-}
-
-.recall-prompt {
-  /* 英語と同じ行に1行で収める。長い訳（--prompt-length）は本文幅に収まるよう縮める */
-  font-size: min(
-    clamp(2rem, 9vw, 2.6rem),
-    calc((min(100vw, 460px) - 40px) / (var(--prompt-length, 1) * 0.95))
-  );
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-/* Cue の行（1〜2行）。通常の Encounter では空のまま高さだけを確保する。 */
-.recall-cue {
-  color: var(--ink-soft);
-  font-size: 0.88rem;
-  height: 3em;
-  line-height: 1.5;
-  white-space: pre-line;
-}
-
-.word-card.is-reveal .recall-cue {
-  color: var(--muted);
-}
-
-.word-card.is-reveal .english {
-  animation: soft-in 220ms ease-out both;
-}
-
-.recall-xp {
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  height: 1rem;
-  letter-spacing: 0.06em;
 }
 
 @keyframes soft-in {
@@ -735,8 +686,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .level-up,
-  .reencounter-feedback,
-  .word-card.is-reveal .english {
+  .reencounter-feedback {
     animation: none;
   }
 
