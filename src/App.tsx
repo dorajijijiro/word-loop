@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { words, type Word } from './data/words'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { neutralImagePlaceholder, words, type Word } from './data/words'
 import {
   advanceEncounter,
   clearReencounterQueue,
@@ -553,7 +553,13 @@ function App() {
               </div>
             ) : (
               <div className="word-copy">
-                <h1 className="english">{currentWord.english}</h1>
+                {/* 長い語・phrase は文字数に応じて縮め、1行に収める */}
+                <h1
+                  className="english"
+                  style={{ '--english-length': currentWord.english.length } as CSSProperties}
+                >
+                  {currentWord.english}
+                </h1>
                 <p className="translation">{currentWord.japanese}</p>
                 {recallPhase === 'reveal' && <p className="recall-cue">{currentWord.recallCue}</p>}
               </div>
@@ -561,7 +567,12 @@ function App() {
 
             {recallPhase !== 'cue' && (
               <div className="image-area" role="img" aria-label={currentWord.image.alt}>
-                <span aria-hidden="true">{currentWord.image.placeholder}</span>
+                <span
+                  aria-hidden="true"
+                  className={currentWord.image.placeholder === neutralImagePlaceholder ? 'is-neutral' : undefined}
+                >
+                  {currentWord.image.placeholder}
+                </span>
               </div>
             )}
 

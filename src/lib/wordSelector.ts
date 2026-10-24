@@ -34,7 +34,18 @@ export const familiarEncounterThreshold = 3
 
 // familiar 枠で循環させる語がこの数に満たない間は、familiar 枠に new も混ぜる。
 // 初回遠征で、先に3回見た少数の語ばかりが繰り返されるのを防ぎ、new を自然に familiar へ育てる。
+// 語彙数に応じて getMinimumFamiliarPool で増やす（20語では 8、200語では 30）。
 export const minimumFamiliarPool = 8
+
+// 語彙が多いとき、familiar 枠で循環させたい最低語数の語彙全体に対する割合と上限。
+// 1遠征の familiar 枠は約95回あるため、30語あれば1語あたり3回前後に収まる。
+export const familiarPoolShare = 0.15
+export const maximumFamiliarPool = 30
+
+// 語彙200語で familiar が8語を超えた途端に、その8語だけが familiar 枠を占めて繰り返されるのを防ぐ。
+export function getMinimumFamiliarPool(wordCount: number) {
+  return Math.min(maximumFamiliarPool, Math.max(minimumFamiliarPool, Math.ceil(wordCount * familiarPoolShare)))
+}
 
 // 暫定ルール:
 // attentionDebt > 0 → growth（初回でタップした語も growth）
@@ -113,7 +124,7 @@ export function chooseTrack(
 
 // 枠ごとに、どの候補グループから順に探すか。前のグループに候補がなければ次へ進む。
 // learning 枠: growth 優先（一定割合で new）→ もう一方 → familiar。
-// familiar 枠: familiar → new → growth。familiar が minimumFamiliarPool 未満の間は familiar と new をまとめて1グループにする。
+// familiar 枠: familiar → new → growth。familiar が getMinimumFamiliarPool 未満の間は familiar と new をまとめて1グループにする。
 //   growth を後ろにするのは、候補不足の補充でタップした語ばかりが続かないようにするため。
 const candidatePools = (
   track: SelectionTrack,
@@ -121,7 +132,8 @@ const candidatePools = (
   random: RandomSource,
 ): string[][] => {
   if (track === 'familiar') {
-    return groups.familiar.length < minimumFamiliarPool
+    const wordCount = groups.new.length + groups.growth.length + groups.familiar.length
+    return groups.familiar.length < getMinimumFamiliarPool(wordCount)
       ? [[...groups.familiar, ...groups.new], groups.growth]
       : [groups.familiar, groups.new, groups.growth]
   }
