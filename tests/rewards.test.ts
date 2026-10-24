@@ -1,17 +1,9 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
-  advanceEncounter,
-  createEncounterSession,
-  registerAttention,
-  reserveReencounter,
-  startEncounter,
-} from '../src/lib/encounterEngine.ts'
-import { recordAttention, recordEncounter, type LearningProgressMap } from '../src/lib/learningProgress.ts'
-import {
+  completeExhaustedExpedition,
   completeExpedition,
   expeditionEncounterLimit,
-  hasReachedExpeditionLimit,
   isExpeditionRunning,
   recordExpeditionEncounter,
   returnFromExpedition,
@@ -25,7 +17,7 @@ import {
   savePlayerProgress,
 } from '../src/lib/playerProgress.ts'
 import { calculateEncounterXp, calculateReturnGold } from '../src/lib/rewards.ts'
-import { seededRandom, wordProgress } from './helpers.ts'
+import { simulateExpedition, wordProgress } from './helpers.ts'
 
 test('XP 計算: familiar 1 / new 5 / growth 5 / re-encounter 10', () => {
   assert.equal(calculateEncounterXp({ kind: 'familiar' }), 1)
@@ -50,24 +42,21 @@ test('Gold 計算: 基本100 + (new + growth)×2 + 再遭遇×5、未完了は0'
 })
 
 test('105 Encounter 上限: 105 で止まり、完了時に報酬が確定する', () => {
-  const wordIds = Array.from({ length: 20 }, (_, index) => `w${index}`)
+  const wordIds = Array.from({ length: 200 }, (_, index) => `w${index}`)
   const progress = Object.fromEntries(
     wordIds.map((wordId, index) => [
       wordId,
-      wordProgress(wordId, { encounterCount: index < 18 ? 5 : 0, attentionDebt: index === 17 ? 2 : 0 }),
+      wordProgress(wordId, { encounterCount: index < 150 ? 5 : 0, attentionDebt: index === 160 ? 2 : 0 }),
     ]),
   )
-  const context = { progress, random: seededRandom(8) }
-  let session = startEncounter(createEncounterSession(wordIds, 'w0'), wordIds, context)
-  let expedition = recordExpeditionEncounter(startExpedition(), session.current)
-
-  for (let index = 0; index < 200; index += 1) {
-    if (index % 20 === 0) {
-      session = reserveReencounter(session, session.current.wordId)
-    }
-    session = advanceEncounter(session, wordIds, context)
-    expedition = recordExpeditionEncounter(expedition, session.current)
-  }
+  const { expedition, session } = simulateExpedition({
+    wordIds,
+    progress,
+    now: Date.parse('2026-10-24T00:00:00.000Z'),
+    seed: 8,
+    // 20 Encounter ごとに「まだわからない」→ again として再登場する
+    answer: (_, index) => (index % 20 === 0 ? 'unknown' : null),
+  })
 
   assert.equal(expedition.encounterCount, expeditionEncounterLimit)
   assert.equal(
@@ -79,78 +68,39 @@ test('105 Encounter 上限: 105 で止まり、完了時に報酬が確定する
     expeditionEncounterLimit,
   )
   assert.ok(expedition.reencounterCount > 0)
-  const learning = expedition.newCount + expedition.growthCount
-  assert.ok(learning >= 7 && learning <= 13, `learning ${learning}`)
-  assert.ok(expedition.newCount > 0 && expedition.growthCount > 0)
   assert.equal(isExpeditionRunning(expedition), false)
-  assert.equal(hasReachedExpeditionLimit(expedition), true)
+  assert.equal(expedition.status, 'completed')
+  assert.equal(expedition.endReason, 'limit')
+  assert.deepEqual(session?.reencounterQueue, [])
+  const learning = expedition.newCount + expedition.growthCount
   assert.equal(
     expedition.xp,
     expedition.familiarCount + learning * 5 + (expedition.reencounterCount + expedition.recallCount) * 10,
   )
-
-  const completed = completeExpedition(expedition)
-  assert.equal(completed.status, 'completed')
-  assert.deepEqual(completed.rewards, {
+  assert.deepEqual(expedition.rewards, {
     xp: expedition.xp,
     gold: 100 + learning * 2 + (expedition.reencounterCount + expedition.recallCount) * 5,
   })
   // 二重に完了しない
-  assert.equal(completeExpedition(completed), completed)
+  assert.equal(completeExpedition(expedition), expedition)
+  assert.equal(completeExhaustedExpedition(expedition), expedition)
 
-  const returned = returnFromExpedition(completed)
+  const returned = returnFromExpedition(expedition)
   assert.equal(returned.status, 'returned')
-  assert.deepEqual(returned.rewards, completed.rewards)
+  assert.deepEqual(returned.rewards, expedition.rewards)
 })
 
-// App と同じ順序（表示 → 進捗に Encounter を記録 → 必要ならタップ）で遠征を1回分シミュレーションする。
-const simulateExpedition = (
-  wordIds: string[],
-  initialProgress: LearningProgressMap,
-  seed: number,
-  shouldTap: (wordId: string, index: number) => boolean,
-) => {
-  const random = seededRandom(seed)
-  const at = '2026-10-21T08:00:00.000Z'
-  let progress = initialProgress
-  let session = startEncounter(createEncounterSession(wordIds, wordIds[0]), wordIds, { progress, random })
-  let expedition = startExpedition()
-
-  for (let index = 0; index < 300 && isExpeditionRunning(expedition); index += 1) {
-    if (index > 0) {
-      session = advanceEncounter(session, wordIds, { progress, random })
-    }
-    expedition = recordExpeditionEncounter(expedition, session.current)
-    progress = recordEncounter(progress, session.current.wordId, at)
-
-    if (shouldTap(session.current.wordId, index)) {
-      // 同じ表示中の連打（3回）は1回として数える
-      for (let tap = 0; tap < 3; tap += 1) {
-        const result = registerAttention(session)
-        session = result.session
-        if (result.isFirstAttention) {
-          progress = recordAttention(progress, session.current.wordId, at)
-        }
-      }
-    }
-  }
-
-  return { expedition, progress }
-}
-
-test('遠征: 初回は全語 new から始まり、familiar / new / growth / again / recall の合計が Encounter 数と一致する', () => {
+test('遠征: 初回は全語 new から始まり、familiar / new / growth / again の合計が Encounter 数と一致する', () => {
   const wordIds = Array.from({ length: 20 }, (_, index) => `w${index}`)
-  const tappedOnce = new Set<string>()
-  const { expedition, progress } = simulateExpedition(wordIds, {}, 21, (wordId, index) => {
-    // 序盤に数語だけ1回ずつタップする
-    if (index < 40 && index % 9 === 0 && !tappedOnce.has(wordId)) {
-      tappedOnce.add(wordId)
-      return true
-    }
-    return false
+  const now = Date.parse('2026-10-24T00:00:00.000Z')
+  const first = simulateExpedition({
+    wordIds,
+    now,
+    seed: 21,
+    answer: (_, index) => (index < 10 && index % 3 === 0 ? 'unknown' : null),
   })
-
-  assert.equal(expedition.encounterCount, expeditionEncounterLimit)
+  const { expedition } = first
+  assert.equal(expedition.endReason, 'exhausted')
   assert.equal(
     expedition.familiarCount +
       expedition.newCount +
@@ -159,32 +109,10 @@ test('遠征: 初回は全語 new から始まり、familiar / new / growth / ag
       expedition.recallCount,
     expedition.encounterCount,
   )
-  assert.ok(expedition.newCount > 0, 'new が出る')
-  assert.ok(expedition.familiarCount > expedition.newCount, `familiar ${expedition.familiarCount}`)
-  assert.ok(expedition.reencounterCount >= tappedOnce.size)
-  // 一度タップした語も、その後タップしなければ debt 0 に戻り familiar になれる
-  for (const wordId of tappedOnce) {
-    assert.equal(progress[wordId].attentionDebt, 0, wordId)
-    assert.equal(progress[wordId].attentionCount, 1, wordId)
-  }
-  assert.equal(
-    expedition.xp,
-    expedition.familiarCount +
-      (expedition.newCount + expedition.growthCount) * 5 +
-      (expedition.reencounterCount + expedition.recallCount) * 10,
-  )
-
-  // 2回目の遠征は familiar 中心の 9:1 に近づく
-  const second = simulateExpedition(wordIds, progress, 22, () => false)
-  assert.ok(second.expedition.familiarCount >= 88, `familiar ${second.expedition.familiarCount}`)
-  assert.equal(
-    second.expedition.familiarCount +
-      second.expedition.newCount +
-      second.expedition.growthCount +
-      second.expedition.reencounterCount +
-      second.expedition.recallCount,
-    expeditionEncounterLimit,
-  )
+  assert.equal(expedition.newCount, 20)
+  assert.equal(expedition.reencounterCount, 4)
+  assert.equal(expedition.encounterCount, 24)
+  assert.equal(expedition.xp, 20 * 5 + 4 * 10)
 })
 
 test('PlayerProgress: 報酬の累積と壊れたデータの初期化', () => {

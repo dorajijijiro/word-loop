@@ -7,17 +7,19 @@ import {
   type KeyboardEvent,
   type SyntheticEvent,
 } from 'react'
-import { neutralImagePlaceholder, words, type Word } from './data/words'
+import { neutralImagePlaceholder, words } from './data/words'
 import {
   advanceEncounter,
+  cancelReencounter,
   clearReencounterQueue,
   createEncounterSession,
-  registerAttention,
+  reserveReencounter,
   retreatEncounter,
   startEncounter,
   type EncounterSession,
 } from './lib/encounterEngine'
 import {
+  completeExhaustedExpedition,
   completeExpedition,
   createIdleExpedition,
   getCompletionDelayMilliseconds,
@@ -31,7 +33,6 @@ import {
 import {
   getWordProgress,
   loadLearningProgress,
-  recordAttention,
   recordEncounter,
   saveLearningProgress,
   type LearningProgressMap,
@@ -50,23 +51,20 @@ import {
 import { getLevelChange, getLevelProgress, type LevelProgress } from './lib/level'
 import { calculateEncounterXp, getEncounterRewardKind } from './lib/rewards'
 import {
+  answerUnderstanding,
   getUnderstanding,
   handleUnderstandingKeyDown,
   loadUnderstanding,
-  recordUnderstanding,
   resolveUnderstandingTarget,
   saveUnderstanding,
   startUnderstandingPress,
+  type UnderstandingAnswerBases,
   type UnderstandingMap,
   type UnderstandingPress,
   type UnderstandingStatus,
+  type UnderstandingTarget,
 } from './lib/understanding'
-import {
-  nextRecallStep,
-  recallEnabledInExpedition,
-  startRecallStep,
-  type RecallStep,
-} from './lib/recall'
+import { nextRecallStep, startRecallStep, type RecallStep } from './lib/recall'
 import './App.css'
 
 const speedPresets = [
@@ -78,14 +76,12 @@ const speedPresets = [
 
 const wordIds = words.map((word) => word.id)
 const wordById = new Map(words.map((word) => [word.id, word]))
-// Recall Cue を持つ語だけを Recall の対象にする。
-const recallWordIds = words.filter((word) => word.recallCue !== undefined).map((word) => word.id)
-const attentionFeedbackMilliseconds = 1200
 const understandingOptions: { status: UnderstandingStatus; label: string }[] = [
   { status: 'known', label: 'わかる' },
   { status: 'unknown', label: 'まだわからない' },
 ]
 const getCurrentTimestamp = () => new Date().toISOString()
+const getCurrentMilliseconds = () => Date.now()
 const progressSaveDelayMilliseconds = 1000
 
 function App() {
@@ -94,7 +90,6 @@ function App() {
     createEncounterSession(wordIds, initialState.currentWordId),
   )
   const [progress, setProgress] = useState(loadLearningProgress)
-  const [attentionFeedback, setAttentionFeedback] = useState<Word | null>(null)
   const [speechEnabled, setSpeechEnabled] = useState(initialState.speechEnabled)
   const [showPhrase, setShowPhrase] = useState(initialState.showPhrase)
   const [isLooping, setIsLooping] = useState(false)
@@ -105,6 +100,10 @@ function App() {
   const understandingRef = useRef<UnderstandingMap>(understanding)
   // 理解度ボタンを押し始めた時点の語。高速周回で押下中に表示が変わっても、この語に記録する。
   const understandingPressRef = useRef<UnderstandingPress | null>(null)
+  // Encounter ごとの回答前の記録。同じ Encounter での連打・訂正を1回分として扱う（保存しない）。
+  const answerBasesRef = useRef<UnderstandingAnswerBases>({})
+  // 遠征を始めようとしたときに、今出せる語が1つもなかった（拠点で案内を出す）。
+  const [noReviewNotice, setNoReviewNotice] = useState(false)
   // 遠征開始前の累積XP。帰還画面でレベルアップを判定するために使う（保存しない）。
   const [expeditionStartXp, setExpeditionStartXp] = useState(playerProgress.totalXp)
   // Recall Encounter の進行（cue → reveal）。Recall 中以外は null。
@@ -120,7 +119,6 @@ function App() {
   const playerProgressRef = useRef<PlayerProgress>(playerProgress)
   // 起動直後（sequence 0）は待機画面で単語を表示しないため、記録済みとして扱う。
   const recordedSequenceRef = useRef<number | undefined>(session.current.sequence)
-  const feedbackTimerRef = useRef<number | undefined>(undefined)
   const pendingProgressSaveRef = useRef<number | undefined>(undefined)
   const latestProgressRef = useRef<LearningProgressMap>(progress)
   const pendingSaveRef = useRef<number | undefined>(undefined)
@@ -192,6 +190,22 @@ function App() {
     }
   }, [])
 
+  // 遠征完了の時点で報酬を確定し、すぐ保存する（帰還前に再読み込みしても失わない）。
+  // running → completed の切り替えは1回だけなので、報酬が二重に加算されることはない。
+  const settleExpedition = useCallback((nextExpedition: ExpeditionState) => {
+    if (nextExpedition === expeditionRef.current || nextExpedition.rewards === null) {
+      return
+    }
+
+    const nextPlayerProgress = applyExpeditionRewards(playerProgressRef.current, nextExpedition.rewards)
+    playerProgressRef.current = nextPlayerProgress
+    savePlayerProgress(nextPlayerProgress)
+    setPlayerProgress(nextPlayerProgress)
+
+    expeditionRef.current = nextExpedition
+    setExpedition(nextExpedition)
+  }, [])
+
   const changeWord = useCallback(
     (direction: 'next' | 'previous') => {
       // 遠征中以外は単語を進めない（105 Encounter を超えない）。
@@ -200,15 +214,25 @@ function App() {
         return
       }
 
-      const context = {
-        progress: latestProgressRef.current,
-        recallWordIds,
-        recallEnabled: recallEnabledInExpedition,
-      }
       const nextSession =
         direction === 'next'
-          ? advanceEncounter(sessionRef.current, wordIds, context)
-          : retreatEncounter(sessionRef.current, context)
+          ? advanceEncounter(sessionRef.current, wordIds, {
+              progress: latestProgressRef.current,
+              understanding: understandingRef.current,
+              now: getCurrentMilliseconds(),
+            })
+          : retreatEncounter(sessionRef.current, { progress: latestProgressRef.current })
+      // 今すぐ出せる候補がない: 上限の前でも、表示した分の報酬で遠征を終える（同じ語や期日前の語で埋めない）。
+      if (nextSession === null) {
+        const settledSession = clearReencounterQueue(sessionRef.current)
+        sessionRef.current = settledSession
+        setSession(settledSession)
+        resumeLoopingRef.current = isLoopingRef.current
+        setIsLooping(false)
+        cancelSpeech()
+        settleExpedition(completeExhaustedExpedition(expeditionRef.current))
+        return
+      }
       // 「前へ」で戻れる語がない場合は何もしない。
       if (nextSession === sessionRef.current) {
         return
@@ -225,18 +249,31 @@ function App() {
         speak(nextWord.english)
       }
     },
-    [cancelSpeech, showEncounter, speechEnabled, speak],
+    [cancelSpeech, settleExpedition, showEncounter, speechEnabled, speak],
   )
 
   const beginExpedition = () => {
+    const nextSession = startEncounter(sessionRef.current, wordIds, {
+      progress: latestProgressRef.current,
+      understanding: understandingRef.current,
+      now: getCurrentMilliseconds(),
+    })
+    // 今出せる語が1つもなければ、空の遠征を作らずに拠点で案内する（報酬・完了遠征数は増えない）。
+    if (nextSession === null) {
+      cancelSpeech()
+      resumeLoopingRef.current = false
+      const idleExpedition = createIdleExpedition()
+      expeditionRef.current = idleExpedition
+      setExpedition(idleExpedition)
+      setNoReviewNotice(true)
+      return
+    }
+
+    setNoReviewNotice(false)
     const nextExpedition = startExpedition()
     expeditionRef.current = nextExpedition
     setExpeditionStartXp(playerProgressRef.current.totalXp)
     // 開始時点ではなく、最初の単語を表示した時点で1 Encounter目として数える。
-    const nextSession = startEncounter(sessionRef.current, wordIds, {
-      progress: latestProgressRef.current,
-      recallEnabled: recallEnabledInExpedition,
-    })
     showEncounter(nextSession)
 
     const nextWord = wordById.get(nextSession.current.wordId)
@@ -260,14 +297,21 @@ function App() {
   const goToBase = () => {
     cancelSpeech()
     resumeLoopingRef.current = false
+    setNoReviewNotice(false)
     const nextExpedition = createIdleExpedition()
     expeditionRef.current = nextExpedition
     setExpedition(nextExpedition)
   }
 
+  // 表示中の語と、その Encounter の通し番号。
+  const getCurrentTarget = (): UnderstandingTarget => ({
+    wordId: sessionRef.current.current.wordId,
+    sequence: sessionRef.current.current.sequence,
+  })
+
   // timeStamp はイベントの発生時刻（押し始めとクリックで同じ時計）。
   const beginUnderstandingPress = (event: SyntheticEvent) => {
-    understandingPressRef.current = startUnderstandingPress(event.timeStamp, sessionRef.current.current.wordId)
+    understandingPressRef.current = startUnderstandingPress(event.timeStamp, getCurrentTarget())
   }
 
   // Enter / Space の自動リピートでは押し始めの語を上書きせず、Enter の連続回答も止める。
@@ -277,7 +321,7 @@ function App() {
       event.key,
       event.repeat,
       event.timeStamp,
-      sessionRef.current.current.wordId,
+      getCurrentTarget(),
     )
     understandingPressRef.current = result.press
     if (result.preventDefault) {
@@ -289,48 +333,35 @@ function App() {
     understandingPressRef.current = null
   }
 
-  // 理解度を記録するだけ。次の語へ進める・自動周回を止める・Attention や報酬を変えることはしない。
-  const answerUnderstanding = (status: UnderstandingStatus, event: SyntheticEvent) => {
+  // 理解度を記録し、次回の出題期日を決める。次の語へ進める・自動周回を止めることはしない。
+  // 「まだわからない」は別の語を挟んだ後の再登場を予約し、「わかる」への訂正は予約を取り消す。
+  const handleUnderstandingAnswer = (status: UnderstandingStatus, event: SyntheticEvent) => {
     const press = understandingPressRef.current
     understandingPressRef.current = null
-    const wordId = resolveUnderstandingTarget(press, event.timeStamp, sessionRef.current.current.wordId)
-    const next = recordUnderstanding(understandingRef.current, wordId, status, getCurrentTimestamp())
-    understandingRef.current = next
-    setUnderstanding(next)
-    saveUnderstanding(next)
-  }
+    const target = resolveUnderstandingTarget(press, event.timeStamp, getCurrentTarget())
+    const result = answerUnderstanding(
+      understandingRef.current,
+      answerBasesRef.current,
+      target,
+      status,
+      getCurrentTimestamp(),
+    )
+    understandingRef.current = result.map
+    answerBasesRef.current = result.bases
+    setUnderstanding(result.map)
+    saveUnderstanding(result.map)
 
-  const requestReencounter = () => {
-    // Recall 自体が特別な接触なので、Recall 中の Attention は受け付けない。
-    if (
-      !isExpeditionRunning(expeditionRef.current) ||
-      recallStepRef.current !== null ||
-      sessionRef.current.current.source === 'recall'
-    ) {
+    if (!isExpeditionRunning(expeditionRef.current)) {
       return
     }
-
-    const word = wordById.get(sessionRef.current.current.wordId)
-    if (word === undefined) {
-      return
+    const nextSession =
+      status === 'unknown'
+        ? reserveReencounter(sessionRef.current, target.wordId, target.sequence)
+        : cancelReencounter(sessionRef.current, target.wordId)
+    if (nextSession !== sessionRef.current) {
+      sessionRef.current = nextSession
+      setSession(nextSession)
     }
-
-    // 同じ表示中の連打は1回の意思表示として数える（attentionDebt を二重に増やさない）。
-    const { session: nextSession, isFirstAttention } = registerAttention(sessionRef.current)
-    if (isFirstAttention) {
-      const attendedAt = new Date().toISOString()
-      setProgress((current) => recordAttention(current, word.id, attendedAt))
-    }
-
-    sessionRef.current = nextSession
-    setSession(nextSession)
-
-    window.clearTimeout(feedbackTimerRef.current)
-    setAttentionFeedback(word)
-    feedbackTimerRef.current = window.setTimeout(() => {
-      setAttentionFeedback(null)
-      feedbackTimerRef.current = undefined
-    }, attentionFeedbackMilliseconds)
   }
 
   const toggleSpeech = () => {
@@ -393,27 +424,12 @@ function App() {
       return
     }
 
-    const timerId = window.setTimeout(() => {
-      const nextExpedition = completeExpedition(expeditionRef.current)
-      if (nextExpedition === expeditionRef.current || nextExpedition.rewards === null) {
-        return
-      }
-
-      // 遠征完了の時点で報酬を確定し、すぐ保存する（帰還前に再読み込みしても失わない）。
-      // running → completed の切り替えは1回だけなので、報酬が二重に加算されることはない。
-      const nextPlayerProgress = applyExpeditionRewards(
-        playerProgressRef.current,
-        nextExpedition.rewards,
-      )
-      playerProgressRef.current = nextPlayerProgress
-      savePlayerProgress(nextPlayerProgress)
-      setPlayerProgress(nextPlayerProgress)
-
-      expeditionRef.current = nextExpedition
-      setExpedition(nextExpedition)
-    }, getCompletionDelayMilliseconds(sessionRef.current.current, intervalMilliseconds))
+    const timerId = window.setTimeout(
+      () => settleExpedition(completeExpedition(expeditionRef.current)),
+      getCompletionDelayMilliseconds(sessionRef.current.current, intervalMilliseconds),
+    )
     return () => window.clearTimeout(timerId)
-  }, [expedition, intervalMilliseconds, recallStep])
+  }, [expedition, intervalMilliseconds, recallStep, settleExpedition])
 
   // Encounterは通し番号ごとに1回だけ記録する。
   // StrictModeでEffectが二重実行されても ref で同じ表示の二重加算を防ぐ。
@@ -456,10 +472,6 @@ function App() {
       window.removeEventListener('pagehide', flushLearningProgress)
       flushLearningProgress()
     }
-  }, [])
-
-  useEffect(() => {
-    return () => window.clearTimeout(feedbackTimerRef.current)
   }, [])
 
   useEffect(() => {
@@ -555,8 +567,16 @@ function App() {
               <span className="numeral">0</span>
               <span className="muted"> / {expedition.encounterLimit}</span>
             </p>
-            <p className="note">{expedition.encounterLimit} 語に出会うと、1回の遠征が終わります。</p>
+            <p className="note">
+              1回の遠征は最大 {expedition.encounterLimit} 語。今出せる語を出し終えると、そこで終わります。
+            </p>
           </div>
+
+          {noReviewNotice && (
+            <p className="no-review-notice" role="status">
+              今の復習はありません。
+            </p>
+          )}
 
           <button type="button" className="primary-button" onClick={beginExpedition}>
             遠征を始める
@@ -600,15 +620,6 @@ function App() {
             className={recallPhase === null ? 'word-card' : `word-card is-recall is-${recallPhase}`}
             aria-live="polite"
           >
-            {recallPhase === null && (
-              <button
-                type="button"
-                className="reencounter-button"
-                onClick={requestReencounter}
-                aria-label={`${currentWord.english}をもう一度出す`}
-              />
-            )}
-
             <p className="encounter-label">
               {encounterLabel !== null && (
                 <span className={encounterLabel.className}>
@@ -621,7 +632,7 @@ function App() {
             </p>
 
             {/*
-              カードは「英語 → 訳 → 画像 → 補助文 → ヒント」の高さ固定の行で組む。
+              カードは「英語 → 訳 → 画像 → 補助文 → 理解度ボタン」の高さ固定の行で組む。
               語の長さ・ラベルの有無・補助文の ON/OFF が変わっても行の高さは変わらないので、英語や画像の位置は動かない。
               遠征では Recall を出さない（Task 014）ため、英語と日本語は常に同時に表示する。
             */}
@@ -649,22 +660,9 @@ function App() {
 
             <p className="phrase">{showPhrase ? currentWord.phrase : ''}</p>
 
-            {/* ヒントと「もう一度出します」は同じ高さ固定の行に出す（下の理解度ボタンと重ならない） */}
-            <p className="tap-hint" role="status">
-              {attentionFeedback === null ? (
-                <span className="tap-hint-text" aria-hidden="true">
-                  タップでもう一度
-                </span>
-              ) : (
-                <span className="reencounter-feedback">
-                  <span aria-hidden="true">↻</span> {attentionFeedback.english} をもう一度出します
-                </span>
-              )}
-            </p>
-
             {/*
               理解度の自己申告（任意）。押さなくても自動周回は止まらず、未回答は「まだわからない」とは扱わない。
-              カード全体の「もう一度」ボタンより手前に置き、Attention とは別の操作にする。
+              カードの操作はこの2つだけ（カード全体をタップする Attention は Task 016 で廃止）。
             */}
             <div className="understanding" role="group" aria-label="この語の理解度（任意）">
               {understandingOptions.map((option) => {
@@ -678,7 +676,7 @@ function App() {
                     onPointerDown={beginUnderstandingPress}
                     onPointerCancel={cancelUnderstandingPress}
                     onKeyDown={handleUnderstandingKey}
-                    onClick={(event) => answerUnderstanding(option.status, event)}
+                    onClick={(event) => handleUnderstandingAnswer(option.status, event)}
                   >
                     {isSelected && <span aria-hidden="true">✓ </span>}
                     {option.label}
@@ -785,6 +783,9 @@ function App() {
           <h1 id="result-title" className="screen-title">
             遠征完了
           </h1>
+          {expedition.endReason === 'exhausted' && (
+            <p className="note">今出せる語を出し終えました。</p>
+          )}
 
           <dl className="reward-list">
             <div>
@@ -900,8 +901,11 @@ function App() {
 
       <p className="dev-stats" aria-label="開発確認用の表示">
         dev · 単語 {currentIndex + 1}/{words.length} · Encounter {currentProgress.encounterCount} ·
-        Attention {currentProgress.attentionCount} · debt {currentProgress.attentionDebt} · 再遭遇予約{' '}
-        {session.reencounterQueue.length}
+        Attention {currentProgress.attentionCount} · debt {currentProgress.attentionDebt} · 理解{' '}
+        {currentUnderstanding === null
+          ? '未回答'
+          : `${currentUnderstanding.status}×${currentUnderstanding.knownStreak}`}{' '}
+        · 再遭遇予約 {session.reencounterQueue.length}
         {session.current.source === 'reencounter' ? ' · 再遭遇中' : ` · ${session.current.bucket}`}
         {expedition.status === 'running' &&
           ` · F/N/G/R ${expedition.familiarCount}/${expedition.newCount}/${expedition.growthCount}/${expedition.reencounterCount}`}

@@ -209,6 +209,12 @@
   font-weight: 300;
 }
 
+/* 遠征を始めようとして、今出せる語がなかったときの短い案内 */
+.no-review-notice {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
 /* 遠征完了：完了・XP・Gold を最も大きく、内訳は控えめに */
 .reward-list {
   display: grid;
@@ -422,23 +428,6 @@
   text-align: center;
 }
 
-/* カード全体をワンタップで「もう一度見る」にする透明ボタン */
-.reencounter-button {
-  background: transparent;
-  border: 0;
-  border-radius: 20px;
-  cursor: pointer;
-  inset: 0;
-  padding: 0;
-  position: absolute;
-  z-index: 1;
-}
-
-.reencounter-button:active ~ .word-copy,
-.reencounter-button:active ~ .image-area {
-  transform: scale(0.985);
-}
-
 /* 高さを固定し、ラベルの有無で単語の位置が動かないようにする */
 .encounter-label {
   font-size: 0.78rem;
@@ -535,29 +524,8 @@
   line-height: 1.5;
 }
 
-.tap-hint {
-  color: var(--muted);
-  font-size: 0.7rem;
-  height: 1rem;
-  letter-spacing: 0.08em;
-}
-
-.tap-hint-text {
-  opacity: 0.6;
-}
-
-.tap-hint .reencounter-feedback {
-  animation: soft-in 200ms ease-out both;
-  color: var(--again);
-  display: inline-block;
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0;
-  white-space: nowrap;
-}
-
 /* ---------- 理解度の自己申告 ---------- */
-/* 英単語より目立たせない。カード全体の「もう一度」ボタン（z-index: 1）より手前に置く。 */
+/* 英単語より目立たせない。カードの操作はこの2つのボタンだけ（カード全体のタップは Task 016 で廃止）。 */
 .understanding {
   display: grid;
   gap: 8px;
@@ -590,16 +558,6 @@
   color: var(--ink);
   font-weight: 600;
   padding: 0 5px;
-}
-
-@keyframes soft-in {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
 }
 
 /* ---------- 操作 ---------- */
@@ -722,8 +680,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .level-up,
-  .tap-hint .reencounter-feedback {
+  .level-up {
     animation: none;
   }
 

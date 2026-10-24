@@ -1,24 +1,21 @@
 // 次に表示する単語（Encounter）を決めるロジック。
-// 優先順位は「期限が来た再遭遇語」→「予定された Recall」→「9:1 通常選出（wordSelector）」。
-// 再遭遇・Recall は 9:1 比率の外側として扱い、比率の計算には含めない。
+// 選出の優先順位は scheduler.ts（短期予約 → 復習候補 → 未回答の語）。候補がなければ null を返し、遠征はそこで終わる。
+// 短期予約は「まだわからない」と答えたときだけ入り、別の語を挟んでから再登場する（Task 016）。
 import type { LearningProgressMap } from './learningProgress.ts'
-import { planRecallPositions, selectRecallWord } from './recall.ts'
 import {
-  addTrackCount,
-  classifyWord,
-  createTrackCounts,
-  selectNormalWord,
-  type LearningBucket,
-  type RandomSource,
-  type TrackCounts,
-} from './wordSelector.ts'
+  getReappearSequence,
+  selectNextWord,
+  type ReencounterReservation,
+} from './scheduler.ts'
+import type { UnderstandingMap } from './understanding.ts'
+import { classifyWord, type LearningBucket, type RandomSource } from './wordSelector.ts'
 
-// タップした単語を何Encounter後に再登場させるか（MVPでは固定値）。
-export const reencounterDelay = 5
+export type { ReencounterReservation } from './scheduler.ts'
 
 // 「前へ」で戻れる履歴の上限。
 const historyLimit = 50
 
+// recall は Task 014 以降の遠征では発生しない（報酬・表示の型のために残している）。
 export type EncounterSource = 'normal' | 'reencounter' | 'recall'
 
 export type Encounter = {
@@ -26,41 +23,29 @@ export type Encounter = {
   sequence: number
   wordId: string
   source: EncounterSource
-  // 表示した時点での語の分類。Recall では Recall 直前の bucket（new / growth）。
+  // 表示した時点での語の分類（ラベル・XP 用。出題の判断には使わない）。
   bucket: LearningBucket
-}
-
-export type ReencounterReservation = {
-  wordId: string
-  dueSequence: number
 }
 
 export type EncounterSession = {
   current: Encounter
   // current より前に表示した語（古い順）。「前へ」で戻るために使う。
   history: string[]
-  // 予約順に並ぶ。dueSequence も予約順に単調増加する。
+  // 「まだわからない」と答えた語の短期予約。dueSequence の昇順。同じ語は1件まで。
   reencounterQueue: ReencounterReservation[]
-  // この遠征の通常選出で狙った枠（familiar / learning）の回数（9:1 の比率計算用）。
-  plannedCounts: TrackCounts
+  // この遠征で表示した語。短期予約以外では同じ遠征で再選出しない。
+  shownWordIds: string[]
   // 最後に通常選出・「前へ」で表示した語（再開位置の保存用）。
   lastNormalWordId: string
-  // Attention を記録済みの Encounter の通し番号。同じ表示中の連打を1回にまとめる。
-  attentionSequence: number | null
-  // この遠征で Recall を出す予定の通し番号（昇順）。出した・見送った分は取り除く。
-  recallSchedule: number[]
-  // この遠征で Recall した語。同じ語の Recall をなるべく避ける。
-  recalledWordIds: string[]
 }
 
-// 選出時に参照する最新の学習進捗と乱数関数。
+// 選出時に参照する最新の学習進捗・理解度・現在時刻と乱数関数。
 export type SelectionContext = {
   progress: LearningProgressMap
+  understanding: UnderstandingMap
+  // 現在時刻（ミリ秒）。
+  now: number
   random?: RandomSource
-  // Recall Cue を持つ語。省略時は wordIds 全体。
-  recallWordIds?: string[]
-  // false なら遠征で Recall を予定しない（予定がないので選出も実行もされない）。省略時は true。
-  recallEnabled?: boolean
 }
 
 export function createEncounterSession(wordIds: string[], startWordId: string): EncounterSession {
@@ -69,11 +54,8 @@ export function createEncounterSession(wordIds: string[], startWordId: string): 
     current: { sequence: 0, wordId, source: 'normal', bucket: 'new' },
     history: [],
     reencounterQueue: [],
-    plannedCounts: createTrackCounts(),
+    shownWordIds: [],
     lastNormalWordId: wordId,
-    attentionSequence: null,
-    recallSchedule: [],
-    recalledWordIds: [],
   }
 }
 
@@ -83,97 +65,67 @@ export function isReencounterReserved(session: EncounterSession, wordId: string)
 
 const pushHistory = (history: string[], wordId: string) => [...history, wordId].slice(-historyLimit)
 
-const selectNormalEncounter = (
+const addShown = (shownWordIds: string[], wordId: string) =>
+  shownWordIds.includes(wordId) ? shownWordIds : [...shownWordIds, wordId]
+
+// 次の語を選ぶ。候補がなければ null。
+const selectEncounter = (
   session: EncounterSession,
   wordIds: string[],
   context: SelectionContext,
-): Pick<EncounterSession, 'current' | 'plannedCounts' | 'lastNormalWordId'> => {
-  const selection = selectNormalWord({
+  previousWordId: string | null,
+): Pick<EncounterSession, 'current' | 'reencounterQueue' | 'shownWordIds' | 'lastNormalWordId'> | null => {
+  const sequence = session.current.sequence + 1
+  const choice = selectNextWord({
     wordIds,
+    understanding: context.understanding,
     progress: context.progress,
-    plannedCounts: session.plannedCounts,
-    previousWordId: session.current.wordId,
+    now: context.now,
+    sequence,
+    previousWordId,
+    shownWordIds: new Set(session.shownWordIds),
+    reservations: session.reencounterQueue,
     random: context.random,
   })
+  if (choice === null) {
+    return null
+  }
 
+  const isReappear = choice.reason === 'reappear'
   return {
     current: {
-      sequence: session.current.sequence + 1,
-      wordId: selection.wordId,
-      source: 'normal',
-      bucket: selection.bucket,
+      sequence,
+      wordId: choice.wordId,
+      source: isReappear ? 'reencounter' : 'normal',
+      bucket: classifyWord(context.progress, choice.wordId),
     },
-    plannedCounts: addTrackCount(session.plannedCounts, selection.plannedTrack),
-    lastNormalWordId: selection.wordId,
+    reencounterQueue: isReappear
+      ? session.reencounterQueue.filter((reservation) => reservation.wordId !== choice.wordId)
+      : session.reencounterQueue,
+    shownWordIds: addShown(session.shownWordIds, choice.wordId),
+    lastNormalWordId: isReappear ? session.lastNormalWordId : choice.wordId,
   }
 }
 
-// 自動周回・「次へ」で呼ぶ。期限が来た再遭遇予約があれば最優先で出す。
-// なければ予定の来た Recall を出し、どちらもなければ 9:1 で選ぶ。
+// 自動周回・「次へ」で呼ぶ。今すぐ出せる候補がなければ null（遠征を終える）。
+// まだ時期が来ていない短期予約だけが残っていても、同じ語や期日前の語で埋めない。
 export function advanceEncounter(
   session: EncounterSession,
   wordIds: string[],
   context: SelectionContext,
-): EncounterSession {
-  const sequence = session.current.sequence + 1
-  const history = pushHistory(session.history, session.current.wordId)
-  const [dueReservation, ...restQueue] = session.reencounterQueue
-
-  // 予約語がちょうど表示中の語なら連続表示になるため、1 Encounter だけ後ろへずらす。
-  if (
-    dueReservation !== undefined &&
-    dueReservation.dueSequence <= sequence &&
-    dueReservation.wordId !== session.current.wordId
-  ) {
-    return {
-      ...session,
-      current: {
-        sequence,
-        wordId: dueReservation.wordId,
-        source: 'reencounter',
-        bucket: classifyWord(context.progress, dueReservation.wordId),
-      },
-      history,
-      reencounterQueue: restQueue,
-    }
+): EncounterSession | null {
+  const selected = selectEncounter(session, wordIds, context, session.current.wordId)
+  if (selected === null) {
+    return null
   }
-
-  // 予定の来た Recall。候補（growth / 見たことのある new）がなければこの回は見送る。
-  // 再遭遇に押し出された Recall は、次の前進で出る（位置が少し後ろへずれる）。
-  const [dueRecall, ...restSchedule] = session.recallSchedule
-  if (dueRecall !== undefined && dueRecall <= sequence) {
-    const recall = selectRecallWord({
-      wordIds: context.recallWordIds ?? wordIds,
-      progress: context.progress,
-      recalledWordIds: session.recalledWordIds,
-      previousWordId: session.current.wordId,
-      random: context.random,
-    })
-    if (recall !== null) {
-      return {
-        ...session,
-        current: { sequence, wordId: recall.wordId, source: 'recall', bucket: recall.bucket },
-        history,
-        recallSchedule: restSchedule,
-        recalledWordIds: [...session.recalledWordIds, recall.wordId],
-      }
-    }
-  }
-
-  const normalSession =
-    dueRecall !== undefined && dueRecall <= sequence ? { ...session, recallSchedule: restSchedule } : session
-  return {
-    ...normalSession,
-    ...selectNormalEncounter(normalSession, wordIds, context),
-    history,
-  }
+  return { ...session, ...selected, history: pushHistory(session.history, session.current.wordId) }
 }
 
 // 「前へ」で呼ぶ。直前に表示した語をもう一度表示する（新しい Encounter として数える）。
-// 「前へ」では再遭遇語を差し込まない（予約は次の前進時に出る）。戻れる履歴がなければ何もしない。
+// 「前へ」では予約語を差し込まない（予約は次の前進時に出る）。戻れる履歴がなければ何もしない。
 export function retreatEncounter(
   session: EncounterSession,
-  context: SelectionContext,
+  context: Pick<SelectionContext, 'progress'>,
 ): EncounterSession {
   const wordId = session.history.at(-1)
   if (wordId === undefined) {
@@ -193,64 +145,53 @@ export function retreatEncounter(
   }
 }
 
-// 表示中の単語を再遭遇対象にする。同じ wordId の予約は1件まで。
-export function reserveReencounter(session: EncounterSession, wordId: string): EncounterSession {
+// 「まだわからない」と答えた語を、回答した Encounter から別の語を挟んだ後に再登場させる。
+// 同じ語の予約は1件まで（すでにあれば何もしない）。
+export function reserveReencounter(
+  session: EncounterSession,
+  wordId: string,
+  answeredSequence: number,
+): EncounterSession {
   if (isReencounterReserved(session, wordId)) {
     return session
   }
 
+  const reservation = { wordId, dueSequence: getReappearSequence(answeredSequence) }
   return {
     ...session,
-    reencounterQueue: [
-      ...session.reencounterQueue,
-      { wordId, dueSequence: session.current.sequence + reencounterDelay },
-    ],
+    reencounterQueue: [...session.reencounterQueue, reservation].sort(
+      (left, right) => left.dueSequence - right.dueSequence,
+    ),
   }
 }
 
-export type AttentionResult = {
-  session: EncounterSession
-  // この Encounter で初めての Attention なら true。true のときだけ学習進捗（attentionDebt など）を更新する。
-  isFirstAttention: boolean
-}
-
-// 表示中のカードをタップしたときに呼ぶ。再遭遇を予約し、同じ Encounter の連打は1回として扱う。
-export function registerAttention(session: EncounterSession): AttentionResult {
-  const isFirstAttention = session.attentionSequence !== session.current.sequence
-  const reserved = reserveReencounter(session, session.current.wordId)
-
+// 再登場前に「わかる」へ訂正されたときに呼ぶ。予約がなければ何もしない。
+export function cancelReencounter(session: EncounterSession, wordId: string): EncounterSession {
+  if (!isReencounterReserved(session, wordId)) {
+    return session
+  }
   return {
-    session: isFirstAttention ? { ...reserved, attentionSequence: session.current.sequence } : reserved,
-    isFirstAttention,
+    ...session,
+    reencounterQueue: session.reencounterQueue.filter((reservation) => reservation.wordId !== wordId),
   }
 }
 
-// 遠征開始時に呼ぶ。履歴・比率・再遭遇予約・Recall をリセットし、最初の語を 9:1 で選ぶ。
-// 前の遠征の最後の語（session.current）とは連続しないようにする。
-// Recall の予定は遠征内の位置（recall.ts の recallWindows）を通し番号に変換して持つ。
+// 遠征開始時に呼ぶ。履歴・短期予約・表示済みの語をリセットし、最初の語を選ぶ。
+// 候補が0件なら null（空の遠征は作らない）。
+// 前の遠征の最後の語とはなるべく連続しないようにする（ほかに候補がなければその語でもよい）。
 export function startEncounter(
   session: EncounterSession,
   wordIds: string[],
   context: SelectionContext,
-): EncounterSession {
-  const resetSession: EncounterSession = {
-    ...session,
-    history: [],
-    reencounterQueue: [],
-    plannedCounts: createTrackCounts(),
-    recalledWordIds: [],
-  }
-  const first = selectNormalEncounter(resetSession, wordIds, context)
-  // 遠征の1 Encounter 目が first.current.sequence。
-  const recallSchedule =
-    context.recallEnabled === false
-      ? []
-      : planRecallPositions(context.random).map((position) => first.current.sequence + position - 1)
-
-  return { ...resetSession, ...first, recallSchedule }
+): EncounterSession | null {
+  const resetSession: EncounterSession = { ...session, history: [], reencounterQueue: [], shownWordIds: [] }
+  const first =
+    selectEncounter(resetSession, wordIds, context, session.current.sequence === 0 ? null : session.current.wordId) ??
+    selectEncounter(resetSession, wordIds, context, null)
+  return first === null ? null : { ...resetSession, ...first }
 }
 
-// 遠征終了時に呼ぶ。未消化の再遭遇予約と Recall の予定を破棄する。
+// 遠征終了時に呼ぶ。未消化の短期予約は次の遠征へ持ち越さない（unknown の語は次の遠征の復習候補になる）。
 export function clearReencounterQueue(session: EncounterSession): EncounterSession {
-  return { ...session, reencounterQueue: [], recallSchedule: [] }
+  return { ...session, reencounterQueue: [] }
 }
