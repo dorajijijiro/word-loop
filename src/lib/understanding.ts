@@ -45,6 +45,31 @@ export type UnderstandingPress = { wordId: string; startedAt: number }
 // 押し始めた語を記録先として使う時間の上限。これより古い押下情報は使わない（押しかけて離した場合など）。
 export const understandingPressMaxMilliseconds = 10000
 
+// ボタンを押し始めたとき（pointerdown）の押下情報。
+export function startUnderstandingPress(timeStamp: number, currentWordId: string): UnderstandingPress {
+  return { wordId: currentWordId, startedAt: timeStamp }
+}
+
+// キーボードの keydown を処理する。Enter / Space の押し始めだけを押下情報にする。
+// キーを押し続けたときの自動リピート（repeat）は、押し始めの語を上書きしない。
+// Enter は keydown ごとに click が起きるため、自動リピートでは既定の動作を止めて、別の語へ連続で回答しないようにする。
+// （Space は離したときに1回だけ click が起きるので、自動リピートは無視するだけでよい）
+export function handleUnderstandingKeyDown(
+  press: UnderstandingPress | null,
+  key: string,
+  repeat: boolean,
+  timeStamp: number,
+  currentWordId: string,
+): { press: UnderstandingPress | null; preventDefault: boolean } {
+  if (key !== 'Enter' && key !== ' ') {
+    return { press, preventDefault: false }
+  }
+  if (repeat) {
+    return { press, preventDefault: key === 'Enter' }
+  }
+  return { press: startUnderstandingPress(timeStamp, currentWordId), preventDefault: false }
+}
+
 // 記録先の語を決める。高速周回で押下中に表示が変わっても、押し始めた時点の語に記録する。
 // 押し始めの情報がない操作（支援技術からの実行など）は、確定した時点で表示中の語に記録する。
 export function resolveUnderstandingTarget(

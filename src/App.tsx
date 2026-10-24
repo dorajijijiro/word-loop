@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type SyntheticEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type SyntheticEvent,
+} from 'react'
 import { neutralImagePlaceholder, words, type Word } from './data/words'
 import {
   advanceEncounter,
@@ -43,10 +51,12 @@ import { getLevelChange, getLevelProgress, type LevelProgress } from './lib/leve
 import { calculateEncounterXp, getEncounterRewardKind } from './lib/rewards'
 import {
   getUnderstanding,
+  handleUnderstandingKeyDown,
   loadUnderstanding,
   recordUnderstanding,
   resolveUnderstandingTarget,
   saveUnderstanding,
+  startUnderstandingPress,
   type UnderstandingMap,
   type UnderstandingPress,
   type UnderstandingStatus,
@@ -257,7 +267,22 @@ function App() {
 
   // timeStamp はイベントの発生時刻（押し始めとクリックで同じ時計）。
   const beginUnderstandingPress = (event: SyntheticEvent) => {
-    understandingPressRef.current = { wordId: sessionRef.current.current.wordId, startedAt: event.timeStamp }
+    understandingPressRef.current = startUnderstandingPress(event.timeStamp, sessionRef.current.current.wordId)
+  }
+
+  // Enter / Space の自動リピートでは押し始めの語を上書きせず、Enter の連続回答も止める。
+  const handleUnderstandingKey = (event: KeyboardEvent<HTMLButtonElement>) => {
+    const result = handleUnderstandingKeyDown(
+      understandingPressRef.current,
+      event.key,
+      event.repeat,
+      event.timeStamp,
+      sessionRef.current.current.wordId,
+    )
+    understandingPressRef.current = result.press
+    if (result.preventDefault) {
+      event.preventDefault()
+    }
   }
 
   const cancelUnderstandingPress = () => {
@@ -652,11 +677,7 @@ function App() {
                     aria-pressed={isSelected}
                     onPointerDown={beginUnderstandingPress}
                     onPointerCancel={cancelUnderstandingPress}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        beginUnderstandingPress(event)
-                      }
-                    }}
+                    onKeyDown={handleUnderstandingKey}
                     onClick={(event) => answerUnderstanding(option.status, event)}
                   >
                     {isSelected && <span aria-hidden="true">✓ </span>}
