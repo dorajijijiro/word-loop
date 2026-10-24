@@ -545,34 +545,45 @@ function App() {
               )}
             </p>
 
-            {recallPhase === 'cue' ? (
-              // cue: 日本語＋概念Cueだけを見せる。英語・画像・英語の補助文は答えになるので出さない。
-              <div className="word-copy recall-copy">
-                <h1 className="recall-prompt">{currentWord.japanese}</h1>
-                <p className="recall-cue">{currentWord.recallCue}</p>
+            {/*
+              カードは「英語（cue 中は日本語）→ 訳 → Cue → 画像 → 補助文 → ヒント」の高さ固定の行で組む。
+              表示内容や Recall の状態が変わっても行の高さは変わらないので、英語や画像の位置は動かない。
+            */}
+            <div className="word-copy">
+              <div className="headline">
+                {recallPhase === 'cue' ? (
+                  // cue: 日本語＋概念Cueだけを見せる。英語・画像・英語の補助文は答えになるので出さない。
+                  <h1
+                    className="recall-prompt"
+                    style={{ '--prompt-length': currentWord.japanese.length } as CSSProperties}
+                  >
+                    {currentWord.japanese}
+                  </h1>
+                ) : (
+                  // 長い語・phrase は文字数に応じて縮め、1行に収める
+                  <h1
+                    className="english"
+                    style={{ '--english-length': currentWord.english.length } as CSSProperties}
+                  >
+                    {currentWord.english}
+                  </h1>
+                )}
               </div>
-            ) : (
-              <div className="word-copy">
-                {/* 長い語・phrase は文字数に応じて縮め、1行に収める */}
-                <h1
-                  className="english"
-                  style={{ '--english-length': currentWord.english.length } as CSSProperties}
-                >
-                  {currentWord.english}
-                </h1>
-                <p className="translation">{currentWord.japanese}</p>
-                {recallPhase === 'reveal' && <p className="recall-cue">{currentWord.recallCue}</p>}
-              </div>
-            )}
+              <p className="translation">{recallPhase === 'cue' ? '' : currentWord.japanese}</p>
+              <p className="recall-cue">{recallPhase === null ? '' : currentWord.recallCue}</p>
+            </div>
 
-            {recallPhase !== 'cue' && (
+            {recallPhase === 'cue' ? (
+              // 領域だけ確保して見せない（画像は答えのヒントになる）
+              <div className="image-area is-hidden" aria-hidden="true" />
+            ) : (
               <div className="image-area" role="img" aria-label={currentWord.image.alt}>
-                <span
-                  aria-hidden="true"
-                  className={currentWord.image.placeholder === neutralImagePlaceholder ? 'is-neutral' : undefined}
-                >
-                  {currentWord.image.placeholder}
-                </span>
+                {currentWord.image.placeholder === neutralImagePlaceholder ? (
+                  // 画像未設定の項目は、どの語でも同じ控えめな図形を出す
+                  <span className="image-placeholder" aria-hidden="true" />
+                ) : (
+                  <span aria-hidden="true">{currentWord.image.placeholder}</span>
+                )}
               </div>
             )}
 

@@ -407,13 +407,17 @@
 }
 
 /* ---------- 単語カード ---------- */
+/*
+  上から順に積む（中央寄せにしない）。下の操作部や開発用表示の高さが変わっても、
+  カード内の英語・画像の位置が動かないようにする。
+*/
 .word-card {
-  align-content: center;
+  align-content: start;
   display: grid;
   flex: 1;
-  gap: 14px;
+  gap: 12px;
   justify-items: center;
-  padding: 24px 0 16px;
+  padding: clamp(8px, 4svh, 40px) 0 16px;
   position: relative;
   text-align: center;
 }
@@ -458,29 +462,44 @@
   color: var(--again);
 }
 
+/* 各行は高さ固定。中身（語の長さ・訳の有無・Recall の状態）が変わっても位置が動かない。 */
 .word-copy {
   display: grid;
-  gap: 10px;
+  gap: 6px;
   transition: transform 120ms ease;
+  width: 100%;
+}
+
+/* 英語（Recall の cue 中は日本語）を置く行。最大の文字サイズ1行分の高さで固定し、中央にそろえる。 */
+.headline {
+  align-items: center;
+  display: flex;
+  height: 3.8rem;
+  justify-content: center;
 }
 
 .english {
-  /* 文字数（--english-length）が多い語は、本文幅（最大 460px − 左右 20px）に収まるよう縮める */
+  /*
+    基本サイズの幅を狭くして、短い語と長い語の差を抑える。
+    文字数（--english-length）が多い語だけ、本文幅（最大 460px − 左右 20px）に収まるよう縮める。
+  */
   font-size: min(
-    clamp(3.2rem, 16vw, 5.2rem),
+    clamp(2.6rem, 13vw, 3.2rem),
     calc((min(100vw, 460px) - 40px) / (var(--english-length, 1) * 0.62))
   );
   font-weight: 600;
-  letter-spacing: -0.035em;
-  line-height: 1.05;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
   white-space: nowrap;
 }
 
 .translation {
   color: var(--ink-soft);
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   font-weight: 500;
-  min-height: 1.6em;
+  height: 1.5em;
+  line-height: 1.5;
+  white-space: nowrap;
 }
 
 .image-area {
@@ -488,29 +507,37 @@
   background: var(--surface);
   border-radius: 24px;
   display: flex;
-  height: clamp(112px, 18svh, 168px);
+  height: clamp(88px, 15svh, 148px);
   justify-content: center;
-  margin-top: 8px;
+  margin-top: 4px;
   transition: transform 120ms ease;
   width: min(100%, 260px);
 }
 
 .image-area span {
-  font-size: clamp(3.6rem, 10svh, 5.2rem);
+  font-size: clamp(3.4rem, 9svh, 4.6rem);
   line-height: 1;
 }
 
-/* 抽象語・phrase の意味を持たない placeholder は控えめに出す */
-.image-area span.is-neutral {
-  color: var(--muted);
-  font-size: clamp(2rem, 6svh, 2.8rem);
-  opacity: 0.5;
+/* Recall の cue 中は、画像の場所だけ確保して見せない */
+.image-area.is-hidden {
+  visibility: hidden;
+}
+
+/* 画像未設定の項目に共通で出す、意味を持たない控えめな図形（文字や絵文字は使わない） */
+.image-area .image-placeholder {
+  background: var(--line);
+  border-radius: 50%;
+  display: block;
+  height: 36px;
+  width: 36px;
 }
 
 .phrase {
   color: var(--muted);
   font-size: 0.95rem;
-  min-height: 1.5em;
+  height: 1.5em;
+  line-height: 1.5;
 }
 
 .tap-hint {
@@ -541,26 +568,28 @@
 }
 
 .recall-prompt {
-  font-size: clamp(2rem, 9vw, 2.6rem);
+  /* 英語と同じ行に1行で収める。長い訳（--prompt-length）は本文幅に収まるよう縮める */
+  font-size: min(
+    clamp(2rem, 9vw, 2.6rem),
+    calc((min(100vw, 460px) - 40px) / (var(--prompt-length, 1) * 0.95))
+  );
   font-weight: 600;
   letter-spacing: 0.02em;
   line-height: 1.2;
+  white-space: nowrap;
 }
 
+/* Cue の行（1〜2行）。通常の Encounter では空のまま高さだけを確保する。 */
 .recall-cue {
   color: var(--ink-soft);
-  font-size: 0.95rem;
-  line-height: 1.7;
+  font-size: 0.88rem;
+  height: 3em;
+  line-height: 1.5;
   white-space: pre-line;
-}
-
-.recall-copy {
-  gap: 18px;
 }
 
 .word-card.is-reveal .recall-cue {
   color: var(--muted);
-  font-size: 0.82rem;
 }
 
 .word-card.is-reveal .english {
