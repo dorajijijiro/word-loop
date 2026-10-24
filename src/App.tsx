@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type SyntheticEvent } from 'react'
 import { neutralImagePlaceholder, words, type Word } from './data/words'
 import {
   advanceEncounter,
@@ -42,6 +42,16 @@ import {
 import { getLevelChange, getLevelProgress, type LevelProgress } from './lib/level'
 import { calculateEncounterXp, getEncounterRewardKind } from './lib/rewards'
 import {
+  getUnderstanding,
+  loadUnderstanding,
+  recordUnderstanding,
+  resolveUnderstandingTarget,
+  saveUnderstanding,
+  type UnderstandingMap,
+  type UnderstandingPress,
+  type UnderstandingStatus,
+} from './lib/understanding'
+import {
   nextRecallStep,
   recallEnabledInExpedition,
   startRecallStep,
@@ -61,6 +71,11 @@ const wordById = new Map(words.map((word) => [word.id, word]))
 // Recall Cue を持つ語だけを Recall の対象にする。
 const recallWordIds = words.filter((word) => word.recallCue !== undefined).map((word) => word.id)
 const attentionFeedbackMilliseconds = 1200
+const understandingOptions: { status: UnderstandingStatus; label: string }[] = [
+  { status: 'known', label: 'わかる' },
+  { status: 'unknown', label: 'まだわからない' },
+]
+const getCurrentTimestamp = () => new Date().toISOString()
 const progressSaveDelayMilliseconds = 1000
 
 function App() {
@@ -76,6 +91,10 @@ function App() {
   const [intervalSeconds, setIntervalSeconds] = useState(initialState.intervalSeconds)
   const [expedition, setExpedition] = useState(createIdleExpedition)
   const [playerProgress, setPlayerProgress] = useState(loadPlayerProgress)
+  const [understanding, setUnderstanding] = useState(loadUnderstanding)
+  const understandingRef = useRef<UnderstandingMap>(understanding)
+  // 理解度ボタンを押し始めた時点の語。高速周回で押下中に表示が変わっても、この語に記録する。
+  const understandingPressRef = useRef<UnderstandingPress | null>(null)
   // 遠征開始前の累積XP。帰還画面でレベルアップを判定するために使う（保存しない）。
   const [expeditionStartXp, setExpeditionStartXp] = useState(playerProgress.totalXp)
   // Recall Encounter の進行（cue → reveal）。Recall 中以外は null。
@@ -108,6 +127,7 @@ function App() {
   // 再起動時の再開位置は通常選出側の単語にする。
   const normalWordId = session.lastNormalWordId
   const currentWord = wordById.get(session.current.wordId) ?? words[0]
+  const currentUnderstanding = getUnderstanding(understanding, currentWord.id)
   const currentIndex = words.indexOf(currentWord)
   const currentProgress = getWordProgress(progress, currentWord.id)
   const intervalMilliseconds = intervalSeconds * 1000
@@ -233,6 +253,26 @@ function App() {
     const nextExpedition = createIdleExpedition()
     expeditionRef.current = nextExpedition
     setExpedition(nextExpedition)
+  }
+
+  // timeStamp はイベントの発生時刻（押し始めとクリックで同じ時計）。
+  const beginUnderstandingPress = (event: SyntheticEvent) => {
+    understandingPressRef.current = { wordId: sessionRef.current.current.wordId, startedAt: event.timeStamp }
+  }
+
+  const cancelUnderstandingPress = () => {
+    understandingPressRef.current = null
+  }
+
+  // 理解度を記録するだけ。次の語へ進める・自動周回を止める・Attention や報酬を変えることはしない。
+  const answerUnderstanding = (status: UnderstandingStatus, event: SyntheticEvent) => {
+    const press = understandingPressRef.current
+    understandingPressRef.current = null
+    const wordId = resolveUnderstandingTarget(press, event.timeStamp, sessionRef.current.current.wordId)
+    const next = recordUnderstanding(understandingRef.current, wordId, status, getCurrentTimestamp())
+    understandingRef.current = next
+    setUnderstanding(next)
+    saveUnderstanding(next)
   }
 
   const requestReencounter = () => {
@@ -584,15 +624,47 @@ function App() {
 
             <p className="phrase">{showPhrase ? currentWord.phrase : ''}</p>
 
-            <p className="tap-hint" aria-hidden="true">
-              {attentionFeedback === null ? 'タップでもう一度' : ''}
+            {/* ヒントと「もう一度出します」は同じ高さ固定の行に出す（下の理解度ボタンと重ならない） */}
+            <p className="tap-hint" role="status">
+              {attentionFeedback === null ? (
+                <span className="tap-hint-text" aria-hidden="true">
+                  タップでもう一度
+                </span>
+              ) : (
+                <span className="reencounter-feedback">
+                  <span aria-hidden="true">↻</span> {attentionFeedback.english} をもう一度出します
+                </span>
+              )}
             </p>
 
-            {attentionFeedback !== null && (
-              <p className="reencounter-feedback" role="status">
-                <span aria-hidden="true">↻</span> {attentionFeedback.english} をもう一度出します
-              </p>
-            )}
+            {/*
+              理解度の自己申告（任意）。押さなくても自動周回は止まらず、未回答は「まだわからない」とは扱わない。
+              カード全体の「もう一度」ボタンより手前に置き、Attention とは別の操作にする。
+            */}
+            <div className="understanding" role="group" aria-label="この語の理解度（任意）">
+              {understandingOptions.map((option) => {
+                const isSelected = currentUnderstanding?.status === option.status
+                return (
+                  <button
+                    key={option.status}
+                    type="button"
+                    className={`understanding-button is-${option.status}`}
+                    aria-pressed={isSelected}
+                    onPointerDown={beginUnderstandingPress}
+                    onPointerCancel={cancelUnderstandingPress}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        beginUnderstandingPress(event)
+                      }
+                    }}
+                    onClick={(event) => answerUnderstanding(option.status, event)}
+                  >
+                    {isSelected && <span aria-hidden="true">✓ </span>}
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
           </section>
 
           <div className="controls">

@@ -540,19 +540,56 @@
   font-size: 0.7rem;
   height: 1rem;
   letter-spacing: 0.08em;
+}
+
+.tap-hint-text {
   opacity: 0.6;
 }
 
-.reencounter-feedback {
+.tap-hint .reencounter-feedback {
   animation: soft-in 200ms ease-out both;
-  bottom: 12px;
   color: var(--again);
+  display: inline-block;
   font-size: 0.8rem;
   font-weight: 600;
-  left: 0;
-  pointer-events: none;
-  position: absolute;
-  right: 0;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+/* ---------- 理解度の自己申告 ---------- */
+/* 英単語より目立たせない。カード全体の「もう一度」ボタン（z-index: 1）より手前に置く。 */
+.understanding {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 2px;
+  position: relative;
+  width: min(100%, 320px);
+  z-index: 2;
+}
+
+/* .word-loop button の font: inherit より優先させるため、親のクラスを付けて指定する */
+.understanding .understanding-button {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  /* 320px 幅でも「✓ まだわからない」が1行に収まる大きさにし、選択の有無で高さを変えない */
+  font-size: clamp(0.8rem, 4vw, 0.9rem);
+  height: 44px;
+  padding: 0 6px;
+  touch-action: manipulation;
+  white-space: nowrap;
+}
+
+/* 選択中（前回の選択も含む）は色だけでなく、太い枠線・チェック・文字の太さでも区別する */
+.understanding .understanding-button[aria-pressed="true"] {
+  background: var(--surface);
+  border: 2px solid var(--ink-soft);
+  color: var(--ink);
+  font-weight: 600;
+  padding: 0 5px;
 }
 
 @keyframes soft-in {
@@ -686,7 +723,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .level-up,
-  .reencounter-feedback {
+  .tap-hint .reencounter-feedback {
     animation: none;
   }
 
