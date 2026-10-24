@@ -1,22 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import {
-  advanceEncounter,
-  createEncounterSession,
-  startEncounter,
-  type Encounter,
-  type EncounterSession,
-} from '../src/lib/encounterEngine.ts'
 import { recordEncounter, type LearningProgressMap } from '../src/lib/learningProgress.ts'
-import {
-  completeExpedition,
-  expeditionEncounterLimit,
-  getCompletionDelayMilliseconds,
-  hasReachedExpeditionLimit,
-  isExpeditionRunning,
-  recordExpeditionEncounter,
-  startExpedition,
-} from '../src/lib/expedition.ts'
+import { getCompletionDelayMilliseconds, recordExpeditionEncounter, startExpedition } from '../src/lib/expedition.ts'
 import {
   getRecallCueMilliseconds,
   getRecallRevealMilliseconds,
@@ -48,49 +33,10 @@ const familiarProgress: LearningProgressMap = Object.fromEntries(
   wordIds.map((wordId) => [wordId, wordProgress(wordId, { encounterCount: 5 })]),
 )
 
-// App と同じ順序（表示 → 遠征に記録 → 進捗に Encounter を記録）で1遠征を進める。
-const runExpedition = (progress: LearningProgressMap, seed: number, updateProgress = false) => {
-  const random = seededRandom(seed)
-  let currentProgress = progress
-  let session = startEncounter(createEncounterSession(wordIds, 'w0'), wordIds, {
-    progress: currentProgress,
-    random,
-  })
-  let expedition = startExpedition()
-  const shown: Encounter[] = []
-
-  for (let index = 0; index < 300 && isExpeditionRunning(expedition); index += 1) {
-    if (index > 0) {
-      session = advanceEncounter(session, wordIds, { progress: currentProgress, random })
-    }
-    expedition = recordExpeditionEncounter(expedition, session.current)
-    shown.push(session.current)
-    if (updateProgress) {
-      currentProgress = recordEncounter(currentProgress, session.current.wordId, '2026-10-21T08:00:00.000Z')
-    }
-  }
-
-  return { expedition, shown, session, progress: currentProgress }
-}
+// Task 016 で遠征の選出は scheduler.ts に置き換えたため、Recall のエンジン統合テストは削除した。
+// 以下は Recall 自体（recall.ts）の純粋関数のテスト。
 
 // ---------- Recall scheduling ----------
-
-test('Recall: 1遠征で最大4回、遠征内の各区間に分散する', () => {
-  for (const seed of [1, 2, 3, 4, 5]) {
-    const { shown } = runExpedition(mixedProgress, seed)
-    const recalls = shown
-      .map((encounter, index) => ({ encounter, position: index + 1 }))
-      .filter(({ encounter }) => encounter.source === 'recall')
-    assert.ok(recalls.length <= recallMaxPerExpedition, `seed ${seed}: ${recalls.length}`)
-    assert.equal(recalls.length, 4, `seed ${seed}: 候補が十分なら4回`)
-
-    // 再遭遇に押し出されても数 Encounter しかずれない
-    recalls.forEach(({ position }, index) => {
-      const [from, to] = recallWindows[index]
-      assert.ok(position >= from && position <= to + 3, `seed ${seed}: #${index + 1} at ${position}`)
-    })
-  }
-})
 
 test('Recall: 予定位置は4つの区間それぞれからランダムに選ばれる', () => {
   const random = seededRandom(7)
@@ -130,20 +76,7 @@ test('Recall 候補: familiar と未遭遇の語は対象にしない', () => {
   assert.equal(selectRecallWord({ wordIds, progress, recalledWordIds: [] }), null)
 })
 
-test('Recall: familiar のみなら Recall 0回でも遠征は105で終わる', () => {
-  const { expedition, shown } = runExpedition(familiarProgress, 3)
-  assert.equal(expedition.recallCount, 0)
-  assert.equal(shown.filter((encounter) => encounter.source === 'recall').length, 0)
-  assert.equal(expedition.encounterCount, expeditionEncounterLimit)
-  assert.equal(completeExpedition(expedition).status, 'completed')
-})
-
 test('Recall: 同じ語は可能な限り重複して Recall しない', () => {
-  const { shown } = runExpedition(mixedProgress, 9)
-  const recalled = shown.filter((encounter) => encounter.source === 'recall').map((encounter) => encounter.wordId)
-  assert.equal(recalled.length, 4)
-  assert.equal(new Set(recalled).size, 4)
-
   // 候補が1語しかなければ、その語で重複を許す
   const single = Object.fromEntries(
     wordIds.map((wordId) => [wordId, wordProgress(wordId, { encounterCount: 5, attentionDebt: wordId === 'w5' ? 3 : 0 })]),
@@ -158,83 +91,13 @@ test('Recall: 同じ語は可能な限り重複して Recall しない', () => {
 
 // ---------- Encounter ----------
 
-const sessionWithRecallDue = (): EncounterSession => {
-  const context = { progress: mixedProgress, random: seededRandom(4) }
-  const session = startEncounter(createEncounterSession(wordIds, 'w0'), wordIds, context)
-  return {
-    ...session,
-    current: { ...session.current, wordId: 'w0' },
-    recallSchedule: [session.current.sequence + 1, ...session.recallSchedule.slice(1)],
-  }
-}
-
-test('Encounter: 期限が来た再遭遇は Recall より優先し、Recall は次の Encounter へずれる', () => {
-  const context = { progress: mixedProgress, random: seededRandom(4) }
-  const due = sessionWithRecallDue()
-  const session = {
-    ...due,
-    reencounterQueue: [{ wordId: 'w3', dueSequence: due.current.sequence + 1 }],
-  }
-
-  const first = advanceEncounter(session, wordIds, context)
-  assert.equal(first.current.source, 'reencounter')
-  assert.equal(first.current.sequence, session.current.sequence + 1)
-  assert.equal(first.recallSchedule.length, session.recallSchedule.length)
-
-  const second = advanceEncounter(first, wordIds, context)
-  assert.equal(second.current.source, 'recall')
-  assert.equal(second.current.sequence, first.current.sequence + 1)
-  assert.equal(second.recallSchedule.length, session.recallSchedule.length - 1)
-})
-
-test('Encounter: 予定の来た Recall は通常選出より優先し、比率計算には含めない', () => {
-  const context = { progress: mixedProgress, random: seededRandom(4) }
-  const session = sessionWithRecallDue()
-  const next = advanceEncounter(session, wordIds, context)
-
-  assert.equal(next.current.source, 'recall')
-  assert.equal(next.current.sequence, session.current.sequence + 1)
-  assert.equal(next.current.bucket, 'growth')
-  assert.deepEqual(next.plannedCounts, session.plannedCounts)
-  assert.deepEqual(next.recalledWordIds, [next.current.wordId])
-  assert.deepEqual(next.history.at(-1), session.current.wordId)
-})
-
-test('Encounter: Recall 候補がなければその予定を見送り、通常選出で sequence が1増える', () => {
-  const context = { progress: familiarProgress, random: seededRandom(4) }
-  const session = { ...sessionWithRecallDue(), plannedCounts: { familiar: 0, learning: 0 } }
-  const next = advanceEncounter(session, wordIds, context)
-  assert.equal(next.current.source, 'normal')
-  assert.equal(next.current.sequence, session.current.sequence + 1)
-  assert.equal(next.recallSchedule.length, session.recallSchedule.length - 1)
-})
-
-test('Encounter: Recall も含めて105を超えない', () => {
-  for (const seed of [11, 12, 13]) {
-    const { expedition, shown, session } = runExpedition(mixedProgress, seed, true)
-    assert.equal(shown.length, expeditionEncounterLimit)
-    assert.equal(expedition.encounterCount, expeditionEncounterLimit)
-    assert.ok(expedition.recallCount > 0)
-    // 通し番号は1ずつ増える
-    shown.forEach((encounter, index) => {
-      assert.equal(encounter.sequence, shown[0].sequence + index)
-    })
-    // 上限後に記録しても増えない
-    const after = recordExpeditionEncounter(expedition, { ...session.current, sequence: session.current.sequence + 1 })
-    assert.equal(after.encounterCount, expeditionEncounterLimit)
-  }
-})
-
 // ---------- State ----------
 
 test('State: Recall でも encounterCount が増え、attentionDebt は既存ルールどおり1減る', () => {
-  const context = { progress: mixedProgress, random: seededRandom(4) }
-  const next = advanceEncounter(sessionWithRecallDue(), wordIds, context)
-  const wordId = next.current.wordId
+  const wordId = selectRecallWord({ wordIds, progress: mixedProgress, recalledWordIds: [], random: seededRandom(4) })?.wordId ?? ''
   const before = mixedProgress[wordId]
   const after = recordEncounter(mixedProgress, wordId, '2026-10-21T08:00:00.000Z')[wordId]
 
-  assert.equal(next.current.source, 'recall')
   assert.equal(after.encounterCount, before.encounterCount + 1)
   assert.equal(after.attentionDebt, before.attentionDebt - 1)
   assert.equal(after.lastEncounteredAt, '2026-10-21T08:00:00.000Z')
@@ -267,24 +130,6 @@ test('Rewards: Recall は +10 XP、元 bucket とは別の種別として数え�
 
   const counts = { familiarCount: 82, newCount: 10, growthCount: 5, reencounterCount: 4, recallCount: 4 }
   assert.equal(calculateReturnGold(counts, true), 100 + 15 * 2 + 4 * 5 + 4 * 5)
-})
-
-test('Rewards: 遠征集計の合計 = 105、XP は内訳から計算した値と一致する（二重加算なし）', () => {
-  const { expedition } = runExpedition(mixedProgress, 21, true)
-  const total =
-    expedition.familiarCount +
-    expedition.newCount +
-    expedition.growthCount +
-    expedition.reencounterCount +
-    expedition.recallCount
-  assert.equal(total, expeditionEncounterLimit)
-  assert.ok(expedition.recallCount > 0)
-  assert.equal(
-    expedition.xp,
-    expedition.familiarCount +
-      (expedition.newCount + expedition.growthCount) * 5 +
-      (expedition.reencounterCount + expedition.recallCount) * 10,
-  )
 })
 
 // ---------- Cue → Reveal ----------
@@ -321,40 +166,6 @@ test('Word データ: 全項目に1〜2行の短い Recall Cue があり、英�
     // Cue 中に答え（英語）を見せない
     assert.ok(!/[A-Za-z]/.test(cue), word.id)
   }
-})
-
-test('105語目が Recall: reveal を見せ終えたら通常語ぶんの待ちを足さずに完了する', () => {
-  const random = seededRandom(31)
-  const context = { progress: mixedProgress, random }
-  let session = startEncounter(createEncounterSession(wordIds, 'w0'), wordIds, context)
-  // 105語目だけを Recall の予定にする
-  session = { ...session, recallSchedule: [session.current.sequence + expeditionEncounterLimit - 1] }
-  let expedition = recordExpeditionEncounter(startExpedition(), session.current)
-  while (isExpeditionRunning(expedition)) {
-    session = advanceEncounter(session, wordIds, context)
-    expedition = recordExpeditionEncounter(expedition, session.current)
-  }
-
-  const last = session.current
-  assert.equal(last.source, 'recall')
-  assert.equal(expedition.encounterCount, expeditionEncounterLimit)
-  assert.equal(expedition.recallCount, 1)
-  assert.equal(hasReachedExpeditionLimit(expedition), true)
-
-  // 105語目を表示してから完了までの時間 = cue + reveal（+ 完了待ち 0）
-  for (const intervalSeconds of [0.25, 1, 3]) {
-    const cue = startRecallStep(last.sequence, intervalSeconds)
-    const reveal = nextRecallStep(cue, intervalSeconds)
-    assert.ok(reveal !== null)
-    assert.equal(nextRecallStep(reveal, intervalSeconds), null)
-    const total =
-      cue.durationMilliseconds +
-      reveal.durationMilliseconds +
-      getCompletionDelayMilliseconds(last, intervalSeconds * 1000)
-    assert.equal(total, getRecallCueMilliseconds(intervalSeconds) + getRecallRevealMilliseconds(intervalSeconds))
-  }
-  // 3秒/語でも reveal 後 1.2 秒で完了（余分な 3 秒は入らない）
-  assert.equal(getRecallRevealMilliseconds(3) + getCompletionDelayMilliseconds(last, 3000), 1200)
 })
 
 test('105語目が通常 Encounter なら従来どおり設定速度ぶん見せてから完了する', () => {

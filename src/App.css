@@ -209,6 +209,12 @@
   font-weight: 300;
 }
 
+/* 遠征を始めようとして、今出せる語がなかったときの短い案内 */
+.no-review-notice {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
 /* 遠征完了：完了・XP・Gold を最も大きく、内訳は控えめに */
 .reward-list {
   display: grid;
@@ -241,7 +247,7 @@
   width: 100%;
 }
 
-/* encounters / familiar / new と growth / again / recall の2段 */
+/* encounters / familiar / new と growth / again の2段 */
 .breakdown {
   display: grid;
   gap: 14px 6px;
@@ -407,32 +413,19 @@
 }
 
 /* ---------- 単語カード ---------- */
+/*
+  上から順に積む（中央寄せにしない）。下の操作部や開発用表示の高さが変わっても、
+  カード内の英語・画像の位置が動かないようにする。
+*/
 .word-card {
-  align-content: center;
+  align-content: start;
   display: grid;
   flex: 1;
-  gap: 14px;
+  gap: 12px;
   justify-items: center;
-  padding: 24px 0 16px;
+  padding: clamp(8px, 4svh, 40px) 0 16px;
   position: relative;
   text-align: center;
-}
-
-/* カード全体をワンタップで「もう一度見る」にする透明ボタン */
-.reencounter-button {
-  background: transparent;
-  border: 0;
-  border-radius: 20px;
-  cursor: pointer;
-  inset: 0;
-  padding: 0;
-  position: absolute;
-  z-index: 1;
-}
-
-.reencounter-button:active ~ .word-copy,
-.reencounter-button:active ~ .image-area {
-  transform: scale(0.985);
 }
 
 /* 高さを固定し、ラベルの有無で単語の位置が動かないようにする */
@@ -458,29 +451,44 @@
   color: var(--again);
 }
 
+/* 各行は高さ固定。中身（語の長さ・ラベルの有無・補助文の ON/OFF）が変わっても位置が動かない。 */
 .word-copy {
   display: grid;
-  gap: 10px;
+  gap: 6px;
   transition: transform 120ms ease;
+  width: 100%;
+}
+
+/* 英語を置く行。最大の文字サイズ1行分の高さで固定し、中央にそろえる。 */
+.headline {
+  align-items: center;
+  display: flex;
+  height: 3.8rem;
+  justify-content: center;
 }
 
 .english {
-  /* 文字数（--english-length）が多い語は、本文幅（最大 460px − 左右 20px）に収まるよう縮める */
+  /*
+    基本サイズの幅を狭くして、短い語と長い語の差を抑える。
+    文字数（--english-length）が多い語だけ、本文幅（最大 460px − 左右 20px）に収まるよう縮める。
+  */
   font-size: min(
-    clamp(3.2rem, 16vw, 5.2rem),
+    clamp(2.6rem, 13vw, 3.2rem),
     calc((min(100vw, 460px) - 40px) / (var(--english-length, 1) * 0.62))
   );
   font-weight: 600;
-  letter-spacing: -0.035em;
-  line-height: 1.05;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
   white-space: nowrap;
 }
 
 .translation {
   color: var(--ink-soft);
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   font-weight: 500;
-  min-height: 1.6em;
+  height: 1.5em;
+  line-height: 1.5;
+  white-space: nowrap;
 }
 
 .image-area {
@@ -488,101 +496,68 @@
   background: var(--surface);
   border-radius: 24px;
   display: flex;
-  height: clamp(112px, 18svh, 168px);
+  height: clamp(88px, 15svh, 148px);
   justify-content: center;
-  margin-top: 8px;
+  margin-top: 4px;
   transition: transform 120ms ease;
   width: min(100%, 260px);
 }
 
 .image-area span {
-  font-size: clamp(3.6rem, 10svh, 5.2rem);
+  font-size: clamp(3.4rem, 9svh, 4.6rem);
   line-height: 1;
 }
 
-/* 抽象語・phrase の意味を持たない placeholder は控えめに出す */
-.image-area span.is-neutral {
-  color: var(--muted);
-  font-size: clamp(2rem, 6svh, 2.8rem);
-  opacity: 0.5;
+/* 画像未設定の項目に共通で出す、意味を持たない控えめな図形（文字や絵文字は使わない） */
+.image-area .image-placeholder {
+  background: var(--line);
+  border-radius: 50%;
+  display: block;
+  height: 36px;
+  width: 36px;
 }
 
 .phrase {
   color: var(--muted);
   font-size: 0.95rem;
-  min-height: 1.5em;
+  height: 1.5em;
+  line-height: 1.5;
 }
 
-.tap-hint {
+/* ---------- 理解度の自己申告 ---------- */
+/* 英単語より目立たせない。カードの操作はこの2つのボタンだけ（カード全体のタップは Task 016 で廃止）。 */
+.understanding {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 2px;
+  position: relative;
+  width: min(100%, 320px);
+  z-index: 2;
+}
+
+/* .word-loop button の font: inherit より優先させるため、親のクラスを付けて指定する */
+.understanding .understanding-button {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 12px;
   color: var(--muted);
-  font-size: 0.7rem;
-  height: 1rem;
-  letter-spacing: 0.08em;
-  opacity: 0.6;
+  cursor: pointer;
+  /* 320px 幅でも「✓ まだわからない」が1行に収まる大きさにし、選択の有無で高さを変えない */
+  font-size: clamp(0.8rem, 4vw, 0.9rem);
+  height: 44px;
+  padding: 0 6px;
+  touch-action: manipulation;
+  white-space: nowrap;
 }
 
-.reencounter-feedback {
-  animation: soft-in 200ms ease-out both;
-  bottom: 12px;
-  color: var(--again);
-  font-size: 0.8rem;
+/* 選択中（前回の選択も含む）は色だけでなく、太い枠線・チェック・文字の太さでも区別する */
+.understanding .understanding-button[aria-pressed="true"] {
+  background: var(--surface);
+  border: 2px solid var(--ink-soft);
+  color: var(--ink);
   font-weight: 600;
-  left: 0;
-  pointer-events: none;
-  position: absolute;
-  right: 0;
-}
-
-/* ---------- Recall Encounter ---------- */
-/* 通常の Encounter と同じ静かなトーンにする。クイズらしい色・枠・番号は使わない。 */
-.encounter-label .is-recall {
-  color: var(--muted);
-  font-weight: 500;
-}
-
-.recall-prompt {
-  font-size: clamp(2rem, 9vw, 2.6rem);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  line-height: 1.2;
-}
-
-.recall-cue {
-  color: var(--ink-soft);
-  font-size: 0.95rem;
-  line-height: 1.7;
-  white-space: pre-line;
-}
-
-.recall-copy {
-  gap: 18px;
-}
-
-.word-card.is-reveal .recall-cue {
-  color: var(--muted);
-  font-size: 0.82rem;
-}
-
-.word-card.is-reveal .english {
-  animation: soft-in 220ms ease-out both;
-}
-
-.recall-xp {
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  height: 1rem;
-  letter-spacing: 0.06em;
-}
-
-@keyframes soft-in {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
+  padding: 0 5px;
 }
 
 /* ---------- 操作 ---------- */
@@ -705,9 +680,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .level-up,
-  .reencounter-feedback,
-  .word-card.is-reveal .english {
+  .level-up {
     animation: none;
   }
 
