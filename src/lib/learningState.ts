@@ -1,4 +1,4 @@
-import { words } from '../data/words'
+import { words } from '../data/words.ts'
 
 const storageKey = 'word-loop.learning-state'
 const wordIds = new Set(words.map((word) => word.id))
@@ -8,6 +8,9 @@ export type LearningState = {
   intervalSeconds: number
   speechEnabled: boolean
   showPhrase: boolean
+  // ×/✓ ボタンの下の小さな説明（「まだわからない」「わかる」）を表示するか（Task 017）。
+  // この項目がない旧データは true（表示）として読む。
+  showAnswerHints: boolean
 }
 
 const defaultLearningState: LearningState = {
@@ -15,6 +18,7 @@ const defaultLearningState: LearningState = {
   intervalSeconds: 1,
   speechEnabled: true,
   showPhrase: true,
+  showAnswerHints: true,
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -56,6 +60,10 @@ export function loadLearningState(): LearningState {
         typeof parsedValue.showPhrase === 'boolean'
           ? parsedValue.showPhrase
           : defaultLearningState.showPhrase,
+      showAnswerHints:
+        typeof parsedValue.showAnswerHints === 'boolean'
+          ? parsedValue.showAnswerHints
+          : defaultLearningState.showAnswerHints,
     }
   } catch {
     return defaultLearningState

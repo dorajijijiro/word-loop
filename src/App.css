@@ -209,6 +209,12 @@
   font-weight: 300;
 }
 
+/* 遠征を始めようとして、今出せる語がなかったときの短い案内 */
+.no-review-notice {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
 /* 遠征完了：完了・XP・Gold を最も大きく、内訳は控えめに */
 .reward-list {
   display: grid;
@@ -241,7 +247,7 @@
   width: 100%;
 }
 
-/* encounters / familiar / new と growth / again / recall の2段 */
+/* encounters / familiar / new と growth / again の2段 */
 .breakdown {
   display: grid;
   gap: 14px 6px;
@@ -323,16 +329,8 @@
 
 /* ---------- 遠征中 HUD ---------- */
 .hud {
-  align-items: baseline;
   display: grid;
-  gap: 8px 12px;
-  grid-template-columns: 1fr auto;
-}
-
-.hud-level {
-  color: var(--ink-soft);
-  font-size: 0.9rem;
-  font-weight: 500;
+  gap: 8px;
 }
 
 .hud-count {
@@ -350,89 +348,19 @@
   height: 2px;
 }
 
-.hud-xp {
-  color: var(--muted);
-  font-size: 0.8rem;
-  grid-column: 2;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.hud-xp .numeral {
-  color: var(--ink-soft);
-}
-
-/* 幅固定のインライン要素なのでレイアウトは動かない。key で毎回作り直し、短時間だけ表示する。 */
-.xp-gain {
-  animation-fill-mode: both;
-  animation-name: xp-flash;
-  animation-timing-function: ease-out;
-  display: inline-block;
-  font-weight: 500;
-  margin-right: 8px;
-  min-width: 3ch;
-  text-align: right;
-}
-
-.xp-gain.is-familiar {
-  color: var(--muted);
-}
-
-.xp-gain.is-new {
-  color: var(--ink-soft);
-}
-
-.xp-gain.is-growth {
-  color: var(--accent);
-}
-
-.xp-gain.is-reencounter {
-  color: var(--again);
-}
-
-@keyframes xp-flash {
-  0% {
-    opacity: 0;
-    transform: translateY(3px);
-  }
-
-  25% {
-    opacity: 1;
-    transform: none;
-  }
-
-  100% {
-    opacity: 0;
-  }
-}
-
 /* ---------- 単語カード ---------- */
+/*
+  上から順に積む（中央寄せにしない）。下の操作部や開発用表示の高さが変わっても、
+  カード内の英語・画像の位置が動かないようにする。
+*/
 .word-card {
-  align-content: center;
+  align-content: start;
   display: grid;
-  flex: 1;
-  gap: 14px;
+  gap: 12px;
   justify-items: center;
-  padding: 24px 0 16px;
+  padding: clamp(8px, 4svh, 40px) 0 8px;
   position: relative;
   text-align: center;
-}
-
-/* カード全体をワンタップで「もう一度見る」にする透明ボタン */
-.reencounter-button {
-  background: transparent;
-  border: 0;
-  border-radius: 20px;
-  cursor: pointer;
-  inset: 0;
-  padding: 0;
-  position: absolute;
-  z-index: 1;
-}
-
-.reencounter-button:active ~ .word-copy,
-.reencounter-button:active ~ .image-area {
-  transform: scale(0.985);
 }
 
 /* 高さを固定し、ラベルの有無で単語の位置が動かないようにする */
@@ -458,29 +386,44 @@
   color: var(--again);
 }
 
+/* 各行は高さ固定。中身（語の長さ・ラベルの有無・補助文の ON/OFF）が変わっても位置が動かない。 */
 .word-copy {
   display: grid;
-  gap: 10px;
+  gap: 6px;
   transition: transform 120ms ease;
+  width: 100%;
+}
+
+/* 英語を置く行。最大の文字サイズ1行分の高さで固定し、中央にそろえる。 */
+.headline {
+  align-items: center;
+  display: flex;
+  height: 3.8rem;
+  justify-content: center;
 }
 
 .english {
-  /* 文字数（--english-length）が多い語は、本文幅（最大 460px − 左右 20px）に収まるよう縮める */
+  /*
+    基本サイズの幅を狭くして、短い語と長い語の差を抑える。
+    文字数（--english-length）が多い語だけ、本文幅（最大 460px − 左右 20px）に収まるよう縮める。
+  */
   font-size: min(
-    clamp(3.2rem, 16vw, 5.2rem),
+    clamp(2.6rem, 13vw, 3.2rem),
     calc((min(100vw, 460px) - 40px) / (var(--english-length, 1) * 0.62))
   );
   font-weight: 600;
-  letter-spacing: -0.035em;
-  line-height: 1.05;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
   white-space: nowrap;
 }
 
 .translation {
   color: var(--ink-soft);
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   font-weight: 500;
-  min-height: 1.6em;
+  height: 1.5em;
+  line-height: 1.5;
+  white-space: nowrap;
 }
 
 .image-area {
@@ -488,94 +431,176 @@
   background: var(--surface);
   border-radius: 24px;
   display: flex;
-  height: clamp(112px, 18svh, 168px);
+  height: clamp(88px, 15svh, 148px);
   justify-content: center;
-  margin-top: 8px;
+  margin-top: 4px;
   transition: transform 120ms ease;
   width: min(100%, 260px);
 }
 
 .image-area span {
-  font-size: clamp(3.6rem, 10svh, 5.2rem);
+  font-size: clamp(3.4rem, 9svh, 4.6rem);
   line-height: 1;
 }
 
-/* 抽象語・phrase の意味を持たない placeholder は控えめに出す */
-.image-area span.is-neutral {
-  color: var(--muted);
-  font-size: clamp(2rem, 6svh, 2.8rem);
-  opacity: 0.5;
+/* 画像未設定の項目に共通で出す、意味を持たない控えめな図形（文字や絵文字は使わない） */
+.image-area .image-placeholder {
+  background: var(--line);
+  border-radius: 50%;
+  display: block;
+  height: 36px;
+  width: 36px;
 }
 
 .phrase {
   color: var(--muted);
   font-size: 0.95rem;
-  min-height: 1.5em;
+  height: 1.5em;
+  line-height: 1.5;
 }
 
-.tap-hint {
-  color: var(--muted);
-  font-size: 0.7rem;
-  height: 1rem;
-  letter-spacing: 0.08em;
-  opacity: 0.6;
+/* ---------- 画面下部（猫・回答ボタン・移動） ---------- */
+/* 画面の下端に寄せる。カードは上から積むので、ここの高さが変わってもカード内の位置は動かない。 */
+.study-dock {
+  display: grid;
+  gap: 8px;
+  margin-top: auto;
 }
 
-.reencounter-feedback {
-  animation: soft-in 200ms ease-out both;
-  bottom: 12px;
-  color: var(--again);
-  font-size: 0.8rem;
-  font-weight: 600;
+/* ---------- 猫 ---------- */
+/* 高さ固定の専用領域。猫は中で絶対配置にして、演出がほかのレイアウトを動かさないようにする。 */
+.cat-stage {
+  height: 52px;
+  overflow: hidden;
+  position: relative;
+}
+
+.cat-walker {
+  --cat-width: 54px;
+  animation: cat-stroll 16s linear infinite;
+  bottom: 2px;
+  height: 42px;
   left: 0;
-  pointer-events: none;
   position: absolute;
-  right: 0;
+  width: var(--cat-width);
 }
 
-/* ---------- Recall Encounter ---------- */
-/* 通常の Encounter と同じ静かなトーンにする。クイズらしい色・枠・番号は使わない。 */
-.encounter-label .is-recall {
+/* 往復の向き。歩く位置と同じ周期で、戻るときに反転する。 */
+.cat-facing {
+  animation: cat-turn 16s linear infinite;
+  display: block;
+  height: 100%;
+  position: relative;
+  width: 100%;
+}
+
+/* 食事中はその場で止まる（歩く位置・向きは保ったまま一時停止） */
+.cat-walker.is-eating,
+.cat-walker.is-eating .cat-facing {
+  animation-play-state: paused;
+}
+
+.cat-body {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.cat-body.is-reacting {
+  animation: cat-hop 360ms ease-out;
+}
+
+/* 横1列6コマ（0〜3: 歩く、4〜5: 食べる）。素材は2倍の解像度なので縮小して表示する。 */
+.cat-sprite {
+  animation: cat-walk-frames 640ms steps(4) infinite;
+  background-image: var(--cat-sprite);
+  background-repeat: no-repeat;
+  background-size: 600% 100%;
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.cat-walker.is-eating .cat-sprite {
+  animation: cat-eat-frames 700ms steps(1) infinite;
+}
+
+/* 器は猫の顔の前（向きが変わると一緒に反転する） */
+.cat-bowl {
+  background: var(--ink-soft);
+  border-radius: 0 0 9px 9px;
+  bottom: 0;
+  height: 7px;
+  left: calc(100% - 8px);
+  position: absolute;
+  width: 16px;
+}
+
+.cat-note {
+  animation: cat-note-in 600ms ease-out both;
   color: var(--muted);
-  font-weight: 500;
+  font-size: 0.72rem;
+  left: calc(100% - 4px);
+  position: absolute;
+  top: -2px;
+  white-space: nowrap;
 }
 
-.recall-prompt {
-  font-size: clamp(2rem, 9vw, 2.6rem);
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  line-height: 1.2;
+@keyframes cat-stroll {
+  0%,
+  100% {
+    left: 0;
+  }
+
+  50% {
+    left: calc(100% - var(--cat-width));
+  }
 }
 
-.recall-cue {
-  color: var(--ink-soft);
-  font-size: 0.95rem;
-  line-height: 1.7;
-  white-space: pre-line;
+@keyframes cat-turn {
+  0%,
+  49.99% {
+    transform: none;
+  }
+
+  50%,
+  100% {
+    transform: scaleX(-1);
+  }
 }
 
-.recall-copy {
-  gap: 18px;
+@keyframes cat-walk-frames {
+  from {
+    background-position: 0% 0;
+  }
+
+  to {
+    background-position: 80% 0;
+  }
 }
 
-.word-card.is-reveal .recall-cue {
-  color: var(--muted);
-  font-size: 0.82rem;
+@keyframes cat-eat-frames {
+  0% {
+    background-position: 80% 0;
+  }
+
+  50% {
+    background-position: 100% 0;
+  }
 }
 
-.word-card.is-reveal .english {
-  animation: soft-in 220ms ease-out both;
+@keyframes cat-hop {
+  0%,
+  100% {
+    transform: none;
+  }
+
+  40% {
+    transform: translateY(-6px);
+  }
 }
 
-.recall-xp {
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  height: 1rem;
-  letter-spacing: 0.06em;
-}
-
-@keyframes soft-in {
+@keyframes cat-note-in {
   from {
     opacity: 0;
   }
@@ -585,17 +610,74 @@
   }
 }
 
-/* ---------- 操作 ---------- */
-.controls {
-  display: grid;
-  gap: 16px;
-  padding-top: 8px;
+.visually-hidden {
+  clip: rect(0 0 0 0);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
 }
 
-.transport {
+/* ---------- 理解度の自己申告（× / ✓） ---------- */
+/* 2つは同じ大きさ・同じ強調。正誤を表す赤 / 緑は使わない。 */
+.understanding {
   display: grid;
   gap: 10px;
-  grid-template-columns: 1fr 1.4fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* .word-loop button の font: inherit より優先させるため、親のクラスを付けて指定する */
+.understanding .understanding-button {
+  align-content: center;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: grid;
+  gap: 1px;
+  height: 56px;
+  justify-items: center;
+  padding: 0 6px;
+  touch-action: manipulation;
+}
+
+.understanding .answer-symbol {
+  font-size: 1.4rem;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.understanding .answer-hint {
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* 説明を隠しても行の高さは残し、ボタンの大きさを変えない */
+.understanding .answer-hint.is-hidden {
+  visibility: hidden;
+}
+
+/* 選択中（前回の選択も含む）は、太い枠線・背景・文字の太さで示す（色だけに頼らない） */
+.understanding .understanding-button[aria-pressed="true"] {
+  background: var(--surface);
+  border: 2px solid var(--ink-soft);
+  color: var(--ink);
+  padding: 0 5px;
+}
+
+.understanding .understanding-button[aria-pressed="true"] .answer-symbol {
+  font-weight: 700;
+}
+
+/* ---------- 操作 ---------- */
+.transport {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1.25fr 1fr 1fr;
 }
 
 .ghost-button,
@@ -605,10 +687,11 @@
   border-radius: 14px;
   color: var(--ink);
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 500;
-  min-height: 52px;
-  padding: 10px 12px;
+  min-height: 48px;
+  padding: 8px 6px;
+  white-space: nowrap;
 }
 
 .loop-toggle[aria-pressed="true"] {
@@ -617,9 +700,47 @@
   color: var(--bg);
 }
 
-.settings {
+.settings-button {
+  color: var(--ink-soft);
+}
+
+/* ---------- 設定（下から重ねて開く） ---------- */
+.settings-backdrop {
+  align-items: end;
+  background: rgb(0 0 0 / 28%);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  position: fixed;
+  z-index: 10;
+}
+
+.settings-sheet {
+  background: var(--bg);
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 24px rgb(0 0 0 / 18%);
   display: grid;
   gap: 12px;
+  max-height: 90svh;
+  overflow-y: auto;
+  padding: 16px 20px max(20px, env(safe-area-inset-bottom));
+  width: min(100%, 460px);
+}
+
+.settings-sheet:focus {
+  outline: none;
+}
+
+.settings-header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.settings-header h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
 }
 
 .speed-presets {
@@ -705,14 +826,33 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .level-up,
-  .reencounter-feedback,
-  .word-card.is-reveal .english {
+  .level-up {
     animation: none;
   }
 
-  .xp-gain {
-    animation-name: none;
+  /* 猫は歩かず跳ねず、静止ポーズで待つ。反応は ♪、食事は食べるポーズと「もぐもぐ」の短い表示で伝える。 */
+  .cat-walker,
+  .cat-facing {
+    animation: none;
+  }
+
+  .cat-walker {
+    left: 16px;
+  }
+
+  .cat-body.is-reacting,
+  .cat-note {
+    animation: none;
+  }
+
+  .cat-sprite {
+    animation: none;
+    background-position: 0% 0;
+  }
+
+  .cat-walker.is-eating .cat-sprite {
+    animation: none;
+    background-position: 80% 0;
   }
 
   .level-bar span,

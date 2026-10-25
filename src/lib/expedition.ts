@@ -1,5 +1,6 @@
 // 1回の学習セッション（遠征）の進行を管理する。
-// 遠征は「開始 → encounterLimit 回の Encounter → 完了 → 帰還」で1区切り。
+// 遠征は「開始 → 最大 encounterLimit 回の Encounter → 完了 → 帰還」で1区切り。
+// 今すぐ出せる候補がなくなったら、上限未満でもそこで完了する（Task 016）。
 // XP は Encounter ごとに、Gold は完了時に rewards.ts で計算する。
 import type { Encounter } from './encounterEngine.ts'
 import {
@@ -9,12 +10,15 @@ import {
   type ExpeditionRewards,
 } from './rewards.ts'
 
-// 1遠征あたりの Encounter 数（基本100＋再遭遇などの追加分5）。現在は固定値。
-// 再遭遇・Recall もすべて1 Encounter として数え、この数を超えない。
+// 1遠征あたりの Encounter 数の上限（基本100＋再遭遇などの追加分5）。現在は固定値。
+// 再遭遇もすべて1 Encounter として数え、この数を超えない。
 export const expeditionEncounterLimit = 105
 
 // idle: 初回の待機 / running: 遠征中 / completed: 遠征完了（結果表示） / returned: 帰還（報酬と累積表示）
 export type ExpeditionStatus = 'idle' | 'running' | 'completed' | 'returned'
+
+// 完了の理由。limit: 上限まで出会った / exhausted: 今出せる候補を出し終えた。完了前は null。
+export type ExpeditionEndReason = 'limit' | 'exhausted'
 
 export type ExpeditionState = {
   // この遠征で表示した Encounter 数。通常語・再遭遇語のどちらも1として数える。
@@ -34,6 +38,7 @@ export type ExpeditionState = {
   lastRecordedSequence: number | null
   // 完了時に確定した報酬。完了前は null。
   rewards: ExpeditionRewards | null
+  endReason: ExpeditionEndReason | null
 }
 
 export function createIdleExpedition(): ExpeditionState {
@@ -49,6 +54,7 @@ export function createIdleExpedition(): ExpeditionState {
     xp: 0,
     lastRecordedSequence: null,
     rewards: null,
+    endReason: null,
   }
 }
 
@@ -107,17 +113,30 @@ export function getCompletionDelayMilliseconds(
   return lastEncounter.source === 'recall' ? 0 : intervalMilliseconds
 }
 
+const settleExpedition = (expedition: ExpeditionState, endReason: ExpeditionEndReason): ExpeditionState => ({
+  ...expedition,
+  status: 'completed',
+  rewards: { xp: expedition.xp, gold: calculateReturnGold(expedition, true) },
+  endReason,
+})
+
 // 最後の単語を表示し終えたときに呼ぶ。ここで今回の報酬が確定する。
 export function completeExpedition(expedition: ExpeditionState): ExpeditionState {
   if (!hasReachedExpeditionLimit(expedition)) {
     return expedition
   }
 
-  return {
-    ...expedition,
-    status: 'completed',
-    rewards: { xp: expedition.xp, gold: calculateReturnGold(expedition, true) },
+  return settleExpedition(expedition, 'limit')
+}
+
+// 上限の前に、今すぐ出せる候補がなくなったときに呼ぶ。実際に表示した Encounter 分の報酬で完了する。
+// 1語も表示していない遠征（開始時点で候補0件）は完了させない（XP・Gold・完了遠征数を増やさない）。
+export function completeExhaustedExpedition(expedition: ExpeditionState): ExpeditionState {
+  if (expedition.status !== 'running' || expedition.encounterCount === 0) {
+    return expedition
   }
+
+  return settleExpedition(expedition, hasReachedExpeditionLimit(expedition) ? 'limit' : 'exhausted')
 }
 
 // 遠征完了画面から帰還画面へ進む。今回の結果は帰還画面で表示するため残す。
