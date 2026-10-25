@@ -16,7 +16,12 @@ import {
   parsePlayerProgress,
   savePlayerProgress,
 } from '../src/lib/playerProgress.ts'
-import { calculateEncounterXp, calculateReturnGold } from '../src/lib/rewards.ts'
+import {
+  calculateEncounterXp,
+  calculateReturnBaseGold,
+  calculateReturnGold,
+  returnBaseGold,
+} from '../src/lib/rewards.ts'
 import { simulateExpedition, wordProgress } from './helpers.ts'
 
 test('XP 計算: familiar 1 / new 5 / growth 5 / re-encounter 10', () => {
@@ -36,9 +41,44 @@ test('XP: 同じ Encounter（通し番号）は二重に加算しない', () => 
 })
 
 test('Gold 計算: 基本100 + (new + growth)×2 + 再遭遇×5、未完了は0', () => {
-  const counts = { familiarCount: 82, newCount: 3, growthCount: 10, reencounterCount: 10 }
+  const counts = {
+    encounterCount: 105,
+    encounterLimit: expeditionEncounterLimit,
+    familiarCount: 82,
+    newCount: 3,
+    growthCount: 10,
+    reencounterCount: 10,
+  }
   assert.equal(calculateReturnGold(counts, true), 100 + 26 + 50)
   assert.equal(calculateReturnGold(counts, false), 0)
+})
+
+test('Gold 計算: 基本 Gold は Encounter 数で按分する（0 / 1 / 3 / 105 Encounter）', () => {
+  const counts = (encounterCount: number, newCount: number) => ({
+    encounterCount,
+    encounterLimit: expeditionEncounterLimit,
+    familiarCount: 0,
+    newCount,
+    growthCount: 0,
+    reencounterCount: 0,
+  })
+  const base = (encounterCount: number) =>
+    calculateReturnBaseGold({ encounterCount, encounterLimit: expeditionEncounterLimit })
+  assert.deepEqual([0, 1, 3, 105].map(base), [0, 1, 3, 100])
+  // 0 Encounter: 基本 Gold・その他の Gold とも発生しない
+  assert.equal(calculateReturnGold(counts(0, 0), true), 0)
+  // 1語（new）: 基本1 + 語ごとの加算2 = 3
+  assert.equal(calculateReturnGold(counts(1, 1), true), 3)
+  // 3語（new）: 基本3 + 6 = 9
+  assert.equal(calculateReturnGold(counts(3, 3), true), 9)
+  // 105語（new）: 基本100 + 210（従来どおり）
+  assert.equal(calculateReturnGold(counts(105, 105), true), 100 + 210)
+  // 四捨五入: 52語 → 49.52… → 50、53語 → 50.47… → 50
+  assert.equal(base(52), Math.round((returnBaseGold * 52) / expeditionEncounterLimit))
+  assert.equal(base(52), 50)
+  assert.equal(base(53), 50)
+  // 上限を超える値は上限として扱う
+  assert.equal(base(200), 100)
 })
 
 test('105 Encounter 上限: 105 で止まり、完了時に報酬が確定する', () => {

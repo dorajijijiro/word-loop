@@ -332,10 +332,28 @@ test('遠征: 候補が尽きたら105未満でも終了し、表示した Encou
   // 初回は全語 new（+5 XP）
   assert.equal(expedition.xp, 30)
   assert.deepEqual(expedition.rewards, { xp: 30, gold: calculateReturnGold(expedition, true) })
-  // 現行の Gold は基本100が固定で付く（短い遠征でも100。係数は変更していない）
-  assert.equal(expedition.rewards?.gold, 100 + 6 * 2)
+  // 基本 Gold は Encounter 数で按分する: round(100 × 6 / 105) = 6、語ごとの加算 6 × 2
+  assert.equal(expedition.rewards?.gold, 6 + 6 * 2)
   const player = applyExpeditionRewards(createPlayerProgress(), expedition.rewards ?? { xp: 0, gold: 0 })
-  assert.deepEqual(player, { totalXp: 30, gold: 112, completedExpeditions: 1 })
+  assert.deepEqual(player, { totalXp: 30, gold: 18, completedExpeditions: 1 })
+  // 既に持っている Gold には足すだけで、過去の値は変えない
+  const existing = { totalXp: 900, gold: 50, completedExpeditions: 3 }
+  assert.deepEqual(applyExpeditionRewards(existing, expedition.rewards ?? { xp: 0, gold: 0 }), {
+    totalXp: 930,
+    gold: 68,
+    completedExpeditions: 4,
+  })
+})
+
+test('遠征: 早期終了した1語・3語の遠征は、按分した基本 Gold で報酬を確定する', () => {
+  for (const [count, gold] of [[1, 1 + 2], [3, 3 + 6]]) {
+    const wordIds = Array.from({ length: count }, (_, index) => `w${index}`)
+    const { expedition } = simulateExpedition({ wordIds, now: t0, seed: count })
+    assert.equal(expedition.status, 'completed')
+    assert.equal(expedition.endReason, 'exhausted')
+    assert.equal(expedition.encounterCount, count)
+    assert.deepEqual(expedition.rewards, { xp: count * 5, gold })
+  }
 })
 
 test('遠征: 時期が来ていない短期予約だけが残っても、同じ語や既知語で埋めずに終了する', () => {
@@ -372,6 +390,7 @@ test('遠征: 開始時点で候補が0件なら遠征を作らず、XP・Gold�
   // 1語も表示していない遠征は完了させない
   const empty = startExpedition()
   assert.equal(completeExhaustedExpedition(empty), empty)
+  assert.equal(calculateReturnGold(empty, true), 0)
   // 期日が来れば候補になる
   assert.equal(simulateExpedition({ wordIds, understanding, now: t0 + dayMilliseconds, seed: 1 }).shown.length, 2)
 })

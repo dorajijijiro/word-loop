@@ -16,6 +16,8 @@ export const encounterXpTable: Record<EncounterRewardKind, number> = {
   recall: 10,
 }
 
+// 遠征完了時の基本 Gold（上限の encounterLimit まで出会ったときの値）。
+// 早期終了した遠征では、実際の Encounter 数で按分する（Task 016）。
 export const returnBaseGold = 100
 // new / growth（learning 枠）の Encounter 1回あたりの Gold。
 export const learningEncounterGold = 2
@@ -28,6 +30,9 @@ export type EncounterRewardInput = {
 }
 
 export type ExpeditionResultCounts = {
+  // 実際に表示した Encounter 数と、その遠征の上限（基本 Gold の按分に使う）。
+  encounterCount: number
+  encounterLimit: number
   familiarCount: number
   newCount: number
   growthCount: number
@@ -55,14 +60,22 @@ export function calculateEncounterXp(input: EncounterRewardInput): number {
   return encounterXpTable[input.kind]
 }
 
-// 遠征を最後まで終えて帰還したときの Gold。途中で終えた遠征（未完了）には与えない。
+// 遠征の基本 Gold。基本 Gold × 実際の Encounter 数 / 上限 を四捨五入する（105語なら100、1語なら1）。
+export function calculateReturnBaseGold(counts: Pick<ExpeditionResultCounts, 'encounterCount' | 'encounterLimit'>): number {
+  if (counts.encounterCount <= 0 || counts.encounterLimit <= 0) {
+    return 0
+  }
+  return Math.round((returnBaseGold * Math.min(counts.encounterCount, counts.encounterLimit)) / counts.encounterLimit)
+}
+
+// 遠征を終えて帰還したときの Gold。未完了の遠征と、0 Encounter の遠征には与えない。
 export function calculateReturnGold(counts: ExpeditionResultCounts, completed: boolean): number {
-  if (!completed) {
+  if (!completed || counts.encounterCount <= 0) {
     return 0
   }
 
   return (
-    returnBaseGold +
+    calculateReturnBaseGold(counts) +
     (counts.newCount + counts.growthCount) * learningEncounterGold +
     counts.reencounterCount * reencounterGold +
     (counts.recallCount ?? 0) * recallGold

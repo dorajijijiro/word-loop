@@ -128,7 +128,15 @@ test('Rewards: Recall は +10 XP、元 bucket とは別の種別として数え�
   assert.equal(once.recallCount, 1)
   assert.equal(once.newCount, 0)
 
-  const counts = { familiarCount: 82, newCount: 10, growthCount: 5, reencounterCount: 4, recallCount: 4 }
+  const counts = {
+    encounterCount: 105,
+    encounterLimit: 105,
+    familiarCount: 82,
+    newCount: 10,
+    growthCount: 5,
+    reencounterCount: 4,
+    recallCount: 4,
+  }
   assert.equal(calculateReturnGold(counts, true), 100 + 15 * 2 + 4 * 5 + 4 * 5)
 })
 
