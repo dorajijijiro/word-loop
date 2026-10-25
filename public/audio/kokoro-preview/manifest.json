@@ -1,0 +1,443 @@
+{
+  "description": "Task 019: Kokoro 試聴用音声の一覧（tools/kokoro/generate.py が生成。手で編集しない）",
+  "generatedAt": "2026-10-25T11:53:15+00:00",
+  "engine": {
+    "kokoro": "0.9.4",
+    "misaki": "0.9.4",
+    "torch": "2.14.1",
+    "espeakFallback": false
+  },
+  "model": {
+    "repoId": "hexgrad/Kokoro-82M",
+    "revision": "f3ff3571791e39611d31c381e3a41a3af07b4987",
+    "file": "kokoro-v1_0.pth",
+    "license": "Apache-2.0"
+  },
+  "voice": {
+    "id": "af_heart",
+    "language": "en-US"
+  },
+  "speed": 1.0,
+  "sampleRate": 24000,
+  "mimeType": "audio/mpeg",
+  "credit": "Audio generated with Kokoro-82M by hexgrad (Apache License 2.0).",
+  "files": {
+    "content": {
+      "word": {
+        "path": "content.mp3",
+        "text": "content",
+        "input": "content",
+        "phonemes": "kˈɑntɛnt",
+        "bytes": 6096,
+        "durationMs": 1450,
+        "sha256": "2fe976c896df845d0a0133ee15914e5aae77a393365283fda6e0d8781d8072d1"
+      }
+    },
+    "permit-verb": {
+      "word": {
+        "path": "permit-verb.mp3",
+        "text": "permit",
+        "input": "[permit](/pəɹmˈɪt/)",
+        "phonemes": "pəɹmˈɪt",
+        "bytes": 5448,
+        "durationMs": 1325,
+        "sha256": "57fbecbfc7564f9a01ffe6841b00954883a34825c7ae2e8c420d3e61bb400fb7"
+      },
+      "sentence": {
+        "path": "permit-verb.sentence.mp3",
+        "text": "The rules do not permit smoking inside.",
+        "input": "The rules do not permit smoking inside.",
+        "phonemes": "ðə ɹˈulz dˈu nˌɑt pəɹmˈɪt smˈOkɪŋ ɪnsˈId.",
+        "bytes": 16200,
+        "durationMs": 2825,
+        "sha256": "6a99a9f0d9f1e2760f076ea77ed273848ed1771f91f0b8649f3c6a3fb48bce17"
+      }
+    },
+    "permit-noun": {
+      "word": {
+        "path": "permit-noun.mp3",
+        "text": "permit",
+        "input": "permit",
+        "phonemes": "pˈɜɹmɪt",
+        "bytes": 5424,
+        "durationMs": 1300,
+        "sha256": "a8ce93feff97f365c2257084345c1a12035f29e3110fe9a3904ac716da274c31"
+      },
+      "sentence": {
+        "path": "permit-noun.sentence.mp3",
+        "text": "You need a permit to park here.",
+        "input": "You need a permit to park here.",
+        "phonemes": "jˌu nˈid ɐ pˈɜɹmɪt tə pˈɑɹk hˈɪɹ.",
+        "bytes": 11424,
+        "durationMs": 2125,
+        "sha256": "d4f63404e756075127830269e8f0b186ee7f414aea461b090865f50373794f33"
+      }
+    },
+    "refuse": {
+      "word": {
+        "path": "refuse.mp3",
+        "text": "refuse",
+        "input": "refuse",
+        "phonemes": "ɹəfjˈuz",
+        "bytes": 6816,
+        "durationMs": 1625,
+        "sha256": "517e05292f555b16806eddb7325c975ed162c9926be90d63996219e276f3bbdd"
+      }
+    },
+    "moderate": {
+      "word": {
+        "path": "moderate.mp3",
+        "text": "moderate",
+        "input": "moderate",
+        "phonemes": "mˈɑdəɹət",
+        "bytes": 6528,
+        "durationMs": 1450,
+        "sha256": "0c43938d8e61fbcce0a09f066ac2d46ce9a90ebf2c9ebbf6610622cf7a4e088a"
+      }
+    },
+    "vehicle": {
+      "word": {
+        "path": "vehicle.mp3",
+        "text": "vehicle",
+        "input": "vehicle",
+        "phonemes": "vˈiəkᵊl",
+        "bytes": 5856,
+        "durationMs": 1475,
+        "sha256": "ff4947c964643956c9b3d489715726ad731c4f188b407a1c5b2ac5c2977bc65f"
+      }
+    },
+    "come-up-with": {
+      "word": {
+        "path": "come-up-with.mp3",
+        "text": "come up with",
+        "input": "come up with",
+        "phonemes": "kˈʌm ˌʌp wɪð",
+        "bytes": 6192,
+        "durationMs": 1425,
+        "sha256": "31652720add83f86bcd00a37eb2ce0506252c429a043997b3a43ee84daffe529"
+      }
+    },
+    "in-a-row": {
+      "word": {
+        "path": "in-a-row.mp3",
+        "text": "in a row",
+        "input": "in a row",
+        "phonemes": "ɪn ɐ ɹˈO",
+        "bytes": 6120,
+        "durationMs": 1550,
+        "sha256": "3815feafea5635e93d7cdaedb8d26659e6543b3d699d51df1769795ce748a24c"
+      },
+      "sentence": {
+        "path": "in-a-row.sentence.mp3",
+        "text": "It rained for three days in a row.",
+        "input": "It rained for three days in a row.",
+        "phonemes": "ˌɪt ɹˈAnd fɔɹ θɹˈi dˈAz ɪn ɐ ɹˈO.",
+        "bytes": 13512,
+        "durationMs": 2400,
+        "sha256": "bfc95bd29fd3e50732c18d2956591eeb80a7176cdfe4fd7cd3bf08daa26537e1"
+      }
+    },
+    "conduct-verb": {
+      "word": {
+        "path": "conduct-verb.mp3",
+        "text": "conduct",
+        "input": "[conduct](/kəndˈʌkt/)",
+        "phonemes": "kəndˈʌkt",
+        "bytes": 6336,
+        "durationMs": 1400,
+        "sha256": "6701ac084220b6ac084f37ee7a425a9e5dc8286e085b35a3451acc10043fc5c2"
+      }
+    },
+    "deliberate": {
+      "word": {
+        "path": "deliberate.mp3",
+        "text": "deliberate",
+        "input": "[deliberate](/dəlˈɪbəɹət/)",
+        "phonemes": "dəlˈɪbəɹət",
+        "bytes": 6696,
+        "durationMs": 1425,
+        "sha256": "0fdc939ddff3983ee8a87bc626ac6d592291e2c908d766d2c43377402b9f13f2"
+      }
+    },
+    "associate": {
+      "word": {
+        "path": "associate.mp3",
+        "text": "associate",
+        "input": "[associate](/əsˈOsiˌAt/)",
+        "phonemes": "əsˈOsiˌAt",
+        "bytes": 6624,
+        "durationMs": 1575,
+        "sha256": "d78677aa849aff57a8b3d057131314918ec6e6551dff2ad9d7ee9912aa36b910"
+      }
+    },
+    "advocate-verb": {
+      "word": {
+        "path": "advocate-verb.mp3",
+        "text": "advocate",
+        "input": "advocate",
+        "phonemes": "ˈædvəkˌAt",
+        "bytes": 6816,
+        "durationMs": 1525,
+        "sha256": "d3a69fac79beb564b519e328444a159eae6e9a8d03d925df1b387db5eb9aeba0"
+      }
+    },
+    "advocate-noun": {
+      "word": {
+        "path": "advocate-noun.mp3",
+        "text": "advocate",
+        "input": "[advocate](/ˈædvəkət/)",
+        "phonemes": "ˈædvəkət",
+        "bytes": 6816,
+        "durationMs": 1525,
+        "sha256": "a03f83e62fed3c04217bd8d7e3cd25ef53ee2d0bf8a73748eb06634c9c502632"
+      }
+    },
+    "chaos": {
+      "word": {
+        "path": "chaos.mp3",
+        "text": "chaos",
+        "input": "chaos",
+        "phonemes": "kˈAˌɑs",
+        "bytes": 5736,
+        "durationMs": 1425,
+        "sha256": "b7fa8ea6e510a3dd257c6d917f1c97db2211c8fa19e0f25ffb6099bc0f15cc0b"
+      }
+    },
+    "subtle": {
+      "word": {
+        "path": "subtle.mp3",
+        "text": "subtle",
+        "input": "subtle",
+        "phonemes": "sˈʌTᵊl",
+        "bytes": 5352,
+        "durationMs": 1325,
+        "sha256": "4a07e9446d07d7e70bf502cc4fdc8731ae09080798cef5f8deab6531e40cdfd0"
+      }
+    },
+    "take-it-for-granted": {
+      "word": {
+        "path": "take-it-for-granted.mp3",
+        "text": "take it for granted",
+        "input": "take it for granted",
+        "phonemes": "tˈAk ɪt fɔɹ ɡɹˈæntᵻd",
+        "bytes": 9024,
+        "durationMs": 1725,
+        "sha256": "17e6726a4d2c6b4d99a03c89609eeed600fc889806123f2056869adcba9ae9c7"
+      }
+    },
+    "unprecedented": {
+      "word": {
+        "path": "unprecedented.mp3",
+        "text": "unprecedented",
+        "input": "unprecedented",
+        "phonemes": "ˌʌnpɹˈɛsədəntᵻd",
+        "bytes": 8544,
+        "durationMs": 1775,
+        "sha256": "3adbca41d71ae5461b5f7bc56741d40b1223a95380d79757953672bfa79a161e"
+      }
+    },
+    "estimate-noun": {
+      "word": {
+        "path": "estimate-noun.mp3",
+        "text": "estimate",
+        "input": "estimate",
+        "phonemes": "ˈɛstəmət",
+        "bytes": 6720,
+        "durationMs": 1475,
+        "sha256": "25b40c4bc10d537fd11227aac0e61e41668c72c6f74905ce48f570cda125ae58"
+      },
+      "sentence": {
+        "path": "estimate-noun.sentence.mp3",
+        "text": "Can you give me a rough estimate?",
+        "input": "Can you give me a rough estimate?",
+        "phonemes": "kˌæn ju ɡˈɪv mˌi ɐ ɹˈʌf ˈɛstəmət?",
+        "bytes": 12312,
+        "durationMs": 2225,
+        "sha256": "50a8086bfe4fed0806307acdd2c428c6989ffc612c658dca9b589ec87311210b"
+      }
+    },
+    "estimate-verb": {
+      "word": {
+        "path": "estimate-verb.mp3",
+        "text": "estimate",
+        "input": "[estimate](/ˈɛstəmˌAt/)",
+        "phonemes": "ˈɛstəmˌAt",
+        "bytes": 6384,
+        "durationMs": 1450,
+        "sha256": "12bb3e4d4e3f4d5650ef80b3088b1acd187e45089c9b59dba368e618956b508f"
+      },
+      "sentence": {
+        "path": "estimate-verb.sentence.mp3",
+        "text": "We estimate the cost at five thousand dollars.",
+        "input": "We estimate the cost at five thousand dollars.",
+        "phonemes": "wˌi ˈɛstəmˌAt ðə kˈɔst æt fˈIv θˈWzᵊnd dˈɑləɹz.",
+        "bytes": 19656,
+        "durationMs": 3150,
+        "sha256": "24f6cb7364218f1423b0bfd8c4bf427d90acf57a424990027ae56fac39791dcb"
+      }
+    },
+    "minutes": {
+      "word": {
+        "path": "minutes.mp3",
+        "text": "minutes",
+        "input": "minutes",
+        "phonemes": "mˈɪnəts",
+        "bytes": 5808,
+        "durationMs": 1350,
+        "sha256": "46f24ad9940ad6f2f270022fc41e46a7b36de9798d824e48ea84807f29243753"
+      }
+    },
+    "colleague": {
+      "word": {
+        "path": "colleague.mp3",
+        "text": "colleague",
+        "input": "colleague",
+        "phonemes": "kˈɑliɡ",
+        "bytes": 5184,
+        "durationMs": 1400,
+        "sha256": "11e6ab3b2ea9382ef66b08c7023900ed9a40cbb406dc55d6513366bc313c16ed"
+      }
+    },
+    "receipt": {
+      "word": {
+        "path": "receipt.mp3",
+        "text": "receipt",
+        "input": "receipt",
+        "phonemes": "ɹəsˈit",
+        "bytes": 6072,
+        "durationMs": 1425,
+        "sha256": "4da12fbceda4b6908c30716dd03f87bafe51104f55e80ba3b7350a64da3391f4"
+      }
+    },
+    "debt": {
+      "word": {
+        "path": "debt.mp3",
+        "text": "debt",
+        "input": "debt",
+        "phonemes": "dˈɛt",
+        "bytes": 4824,
+        "durationMs": 1225,
+        "sha256": "cb92fbb28602bef87922e25435cbba11a7c47e3d4520e03586876e8dbbdb49a0"
+      }
+    },
+    "resume-noun": {
+      "word": {
+        "path": "resume-noun.mp3",
+        "text": "resume",
+        "input": "[resume](/ɹˈɛzəmˌA/)",
+        "phonemes": "ɹˈɛzəmˌA",
+        "bytes": 6096,
+        "durationMs": 1500,
+        "sha256": "7441a5695a8fdfb063494844c62c4c25778c70088b47519e31da7ac25befe878"
+      },
+      "sentence": {
+        "path": "resume-noun.sentence.mp3",
+        "text": "Please send your resume by Friday.",
+        "input": "Please send your [resume](/ɹˈɛzəmˌA/) by Friday.",
+        "phonemes": "plˈiz sˈɛnd jʊɹ ɹˈɛzəmˌA bI fɹˈIdˌA.",
+        "bytes": 14592,
+        "durationMs": 2525,
+        "sha256": "9e53f78af56a81e88329ec0d7498ddfcc6bb075c3900245394686933bad20d77"
+      }
+    },
+    "resume-verb": {
+      "word": {
+        "path": "resume-verb.mp3",
+        "text": "resume",
+        "input": "resume",
+        "phonemes": "ɹəzˈum",
+        "bytes": 6144,
+        "durationMs": 1525,
+        "sha256": "0d4d751e6cb8e2a5018922bfbceed6cacb8faffe6d5f1059900a2933d33f5f13"
+      }
+    },
+    "schedule": {
+      "word": {
+        "path": "schedule.mp3",
+        "text": "schedule",
+        "input": "schedule",
+        "phonemes": "skˈɛʤˌul",
+        "bytes": 6168,
+        "durationMs": 1400,
+        "sha256": "9b9d1cf2f8e1a5319ed427edb9bb9649de5feadcf0da24371e8476efd1f6559f"
+      }
+    },
+    "look-forward-to-hearing": {
+      "word": {
+        "path": "look-forward-to-hearing.mp3",
+        "text": "look forward to hearing",
+        "input": "look forward to hearing",
+        "phonemes": "lˈʊk fˈɔɹwəɹd tə hˈɪɹɪŋ",
+        "bytes": 8808,
+        "durationMs": 1700,
+        "sha256": "739d72e2aedf8dfe3f248464795e3a86409164410717dc2b2ec09c4005f67c57"
+      }
+    },
+    "lead-time": {
+      "word": {
+        "path": "lead-time.mp3",
+        "text": "lead time",
+        "input": "lead time",
+        "phonemes": "lˈid tˈIm",
+        "bytes": 6768,
+        "durationMs": 1575,
+        "sha256": "3ad638871a2efb5d641c1e2cfa780b6a7c9540d59077320513acb5232b7839a0"
+      }
+    },
+    "hierarchy": {
+      "word": {
+        "path": "hierarchy.mp3",
+        "text": "hierarchy",
+        "input": "hierarchy",
+        "phonemes": "hˈIəɹˌɑɹki",
+        "bytes": 6768,
+        "durationMs": 1650,
+        "sha256": "9f1084096b66ef09a4fb63a673c5522509acb8e5bccfebf71f7f508f6453e4f4"
+      }
+    },
+    "entrepreneur": {
+      "word": {
+        "path": "entrepreneur.mp3",
+        "text": "entrepreneur",
+        "input": "entrepreneur",
+        "phonemes": "ˌɑntɹəpɹənˈʊɹ",
+        "bytes": 7416,
+        "durationMs": 1600,
+        "sha256": "a7e7233cbdc8b302fdc060ea40d88c91dfe2d96ac4bc2bbc0618f9f3d04d00cf"
+      }
+    },
+    "iron-out": {
+      "word": {
+        "path": "iron-out.mp3",
+        "text": "iron out",
+        "input": "iron out",
+        "phonemes": "ˈIəɹn ˈWt",
+        "bytes": 6480,
+        "durationMs": 1475,
+        "sha256": "ce70edf3bdd617f4a4d329446bbd916efe95e4cf7c4b3203ba2a08c33dc93496"
+      }
+    },
+    "memorandum-of-understanding": {
+      "word": {
+        "path": "memorandum-of-understanding.mp3",
+        "text": "memorandum of understanding",
+        "input": "memorandum of understanding",
+        "phonemes": "mˌɛməɹˈændəm ʌv ˌʌndəɹstˈændɪŋ",
+        "bytes": 12648,
+        "durationMs": 2250,
+        "sha256": "f9a9b3108c71a4abf16dfeaeb73585de0531b119226653e875679a0a79d9602e"
+      }
+    },
+    "cost-effective": {
+      "word": {
+        "path": "cost-effective.mp3",
+        "text": "cost-effective",
+        "input": "cost-effective",
+        "phonemes": "kˌɔstəfˈɛktɪv",
+        "bytes": 8232,
+        "durationMs": 1725,
+        "sha256": "31af03e6c9901d113b943cb8cff9816f5c72512e056d7ca8e42ef046f8e82178"
+      }
+    }
+  }
+}

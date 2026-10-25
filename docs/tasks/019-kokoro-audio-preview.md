@@ -8,16 +8,17 @@
 
 | 項目 | 状態 |
 | --- | --- |
-| 利用条件の確認 | コード・G2P・依存ツールは一次資料で確認済み。モデルカード（Hugging Face）は接続できず **未確認**（下記） |
+| 利用条件の確認 | 確認済み。コード・G2P・依存ツールに加え、Hugging Face のモデルカードと VOICES.md も確認（下記） |
 | 試作項目・期待する発音 | 33項目（例文6件）を選定し、CMUdict で読みを照合済み |
 | 発音記号（G2P）の確認 | 確認済み。品詞違いの誤読7項目を発音指定で修正 |
 | 試聴画面 | 実装済み。390×844・320×568、ライト・ダークで確認 |
-| **Kokoro 音声の生成** | **未生成**。この作業環境のネットワーク設定で `huggingface.co` が拒否され、公式モデルを取得できない |
-| 実際に聴いての評価 | **ユーザー確認待ち**（音声生成後。この環境では音を聴いて評価できない） |
+| Kokoro 音声の生成 | 生成済み。33項目＋例文6件＝39ファイル（MP3、合計 301.4KB）。モデルのリビジョン `f3ff3571791e39611d31c381e3a41a3af07b4987` |
+| ブラウザでの再生 | 確認済み（Chromium。39件すべて読み込み・最後まで再生） |
+| 実際に聴いての発音評価 | **未確認**（この環境では音を聴いて評価できない。ユーザー確認待ち） |
 | iPhone 実機 | **未確認** |
 
-音声を生成するには、作業環境の Network access で `huggingface.co`（モデル本体の配信先 `*.hf.co` も）を許可したうえで、`tools/kokoro/README.md` の手順を実行する。
-生成すると `public/audio/kokoro-preview/` に MP3 と `manifest.json` ができ、試聴画面の「Kokoro」ボタンが有効になる。
+音声は `huggingface.co` への接続を許可した作業環境で、`tools/kokoro/README.md` の手順どおりに生成した。
+`public/audio/kokoro-preview/` に MP3 と `manifest.json` があり、試聴画面の「Kokoro」ボタンで再生できる。
 
 ## 1. 利用条件（2026-10-25 確認）
 
@@ -32,8 +33,8 @@
 | 対象 | 版・ID | 入手元 | ライセンス | 確認した一次資料 |
 | --- | --- | --- | --- | --- |
 | Kokoro 推論ライブラリ `kokoro` | 0.9.4 | PyPI / github.com/hexgrad/kokoro | Apache-2.0 | GitHub の LICENSE、PyPI のメタデータ |
-| Kokoro-82M モデルの重み | `kokoro-v1_0.pth`（リビジョンは生成時に manifest.json へ記録） | huggingface.co/hexgrad/Kokoro-82M | Apache-2.0（hexgrad/kokoro の README に "Apache-licensed weights" と記載） | GitHub README。**Hugging Face のモデルカードは接続拒否で未確認** |
-| 声 `af_heart`（米国英語・女性） | `voices/af_heart.pt` | 同上 | モデルと同じリポジトリで配布（モデルカード・VOICES.md で要確認） | **未確認**（同上） |
+| Kokoro-82M モデルの重み | `kokoro-v1_0.pth`（v1.0、リビジョン `f3ff3571791e39611d31c381e3a41a3af07b4987`。manifest.json にも記録） | huggingface.co/hexgrad/Kokoro-82M | Apache-2.0 | モデルカード（`license: apache-2.0`、"Apache-licensed weights"、商用 API での利用例にも言及）。SHA256 `496dba11…` がモデルカードの記載と一致 |
+| 声 `af_heart`（米国英語・女性） | `voices/af_heart.pt` | 同上 | モデルと同じリポジトリで配布され、声ごとの別ライセンスや追加の利用制限の記載はない（Apache-2.0 のリポジトリに含まれる） | VOICES.md（総合評価 A。SHA256 `0ab5709b…` が記載と一致） |
 | G2P `misaki` | 0.9.4 | PyPI / github.com/hexgrad/misaki | Apache-2.0 | GitHub の LICENSE、PyPI |
 | spaCy / 英語モデル `en_core_web_sm` | 3.8.7 / 3.8.0 | PyPI / Explosion 公式 GitHub Releases | MIT / MIT | PyPI、wheel のメタデータ |
 | espeak-ng（`espeakng-loader` 0.2.4 経由）、`phonemizer-fork` 3.3.2 | — | PyPI | GPL-3.0 / MIT（loader）/ GPL-3.0 | 各 GitHub の LICENSE・COPYING、PyPI |
@@ -47,7 +48,9 @@
 - 配布するのは生成した MP3 だけで、モデル・コードは配布しない。Apache-2.0 の再配布条件（ライセンス本文・NOTICE の同梱）はモデルやコードを再配布するときの条件で、生成音声には及ばないと読める。
 - それでも出所を明らかにするため、アプリ内（試聴画面）とドキュメントに次のクレジットを表記する。
   > Audio generated with Kokoro-82M by hexgrad (Apache License 2.0).
-- **公開前に必ず確認すること**: Hugging Face のモデルカード（ライセンス表記、学習データ、利用上の注意）と VOICES.md の `af_heart` の記載。今回は接続できず確認できていない。条件が不明なままなら採用しない。
+- モデルカード（2026-10-25 確認）: ライセンスは Apache-2.0。学習データは「許諾された／著作権のない音声」（パブリックドメイン、Apache・MIT 等のライセンスの音声、大手の非公開 TTS による合成音声）と記載。CC BY の音声（Koniwa `tnc`：CC BY 3.0、SIWIS：CC BY 4.0）が学習データに含まれ、モデルカードにクレジットがある。これは学習データの表示で、生成音声に追加の条件を課す記載はない。
+- VOICES.md: `af_heart` に個別のライセンス・利用制限の記載はない。
+- 学習データに CC BY 音声が含まれることを踏まえ、一般公開時はモデルカードへのリンクも併記するとより丁寧（任意）。
 - 法的な助言ではない。一般公開・App Store 配布の前に改めて確認する。
 
 ## 2. 試作項目（33項目、例文6件）
@@ -159,8 +162,10 @@ memorandum-of-understanding word  memorandum of understanding  →  mˌɛməɹˈ
 cost-effective word  cost-effective  →  kˌɔstəfˈɛktɪv
 ```
 
-### 音声の確認：ユーザー確認待ち
-- Kokoro 音声は未生成のため、実際の音は聴いていない。発音記号が正しくても、音声で正しく聞こえるとは限らない。
+### 音声の確認：発音は未確認（ユーザー確認待ち）
+- 生成時、Kokoro が実際に使った発音記号が上記の `--phonemes-only` の出力と全39件で一致することを確認した（食い違えば生成が止まる）。
+- 実際の音は聴いていない（この環境では音を聴いて評価できない）。発音記号が正しくても、音声で正しく聞こえるとは限らない。**発音・聞きやすさは未確認。**
+- 機械的に確認したこと: 全39件が 24kHz モノラルの MP3 として読み込め、無音ではない（RMS 0.044〜0.052）。長さは単語・句 1.2〜2.3秒、例文 2.1〜3.2秒。
 - 生成後、試聴画面で各項目を聴き、期待する発音と比べて判断してもらう。音声認識で文字が一致するだけでは合格にしない。
 - 聴いて誤読があれば、`kokoroInput` の発音指定で直し、再生成する。
 
@@ -192,15 +197,26 @@ cost-effective word  cost-effective  →  kˌɔstəfˈɛktɪv
 | `src/Root.tsx`, `src/main.tsx` | `#audio-preview` のときだけ試聴画面を表示 |
 | `src/App.tsx`, `src/App.css` | 拠点画面に試聴画面へのリンクを追加 |
 | `tools/kokoro/` | 生成スクリプト・依存（Python、Web アプリとは別）・再生成手順 |
-| `public/audio/kokoro-preview/` | 生成した MP3 と `manifest.json`（未生成） |
+| `public/audio/kokoro-preview/` | 生成した MP3（39件）と `manifest.json` |
 | `tests/audioPreview.test.ts` | 項目の整合性、manifest の検証、音声ファイルの欠損・空・余分・内容の照合、声の推定 |
 
 - 形式は MP3（24kHz モノラル）。iPhone Safari を含む主要ブラウザが再生できる形式を選んだ。iPhone 実機では未確認。
-- 合計サイズは生成後に試聴画面と `manifest.json` に表示される（33項目＋例文6件で数百KBの見込み）。
+- 合計サイズは 301.4KB（39ファイル）。試聴画面と `manifest.json` に表示される。
 - モデル本体・生成環境（`.venv-kokoro`、Hugging Face のキャッシュ）は Git に入れない。
 - `tsconfig.app.json` に `resolveJsonModule` を追加した（items.json の読み込み）。
 
 ## 6. 確認結果
+
+### 音声生成後（2026-10-25）
+- Hugging Face への接続を確認（`huggingface.co` に HTTP 200）。`requirements.txt` から新しい Python 3.12 環境を作り、`generate.py` で39ファイルを生成した。
+- `npm test`: 131件すべて成功（生成済み音声の照合テストを含む。スキップなし）。
+- `npm run lint`: 警告・エラー 0。`npm run build`: 成功（`dist/audio/kokoro-preview/` に40ファイル）。
+- ビルド結果を `vite preview` で配信し、Playwright（Chromium）で 390×844・320×568 の試聴画面を開き、39件すべての「Kokoro」ボタンを押した。
+  全件で MP3 が読み込まれ、最後まで再生され（`ended`）、再生後にボタンが元に戻った。「未生成」「再生できませんでした」の表示なし、コンソールエラーなし、横スクロールなし、localStorage の変化なし。
+  画面にモデル・声・合計サイズ・生成日とクレジットが表示されることを確認。
+- ヘッドレス環境のため、スピーカーから音を出して聴く確認はしていない（**発音は未確認**）。iPhone 実機も **未確認**。
+
+### 音声生成前
 
 - `npm test`: 130件成功、1件スキップ（生成済み音声の照合テスト。manifest.json がないため）。
   仮の MP3 と manifest.json を一時的に置いて照合テストが通ること、1ファイル消すと失敗することを確認した（仮ファイルは削除済み）。
@@ -223,6 +239,5 @@ cost-effective word  cost-effective  →  kˌɔstəfˈɛktɪv
 - クラウド同期、外部 API、大規模リファクタリング
 
 ## 未解決・次の手順
-1. 作業環境で `huggingface.co`（と `*.hf.co`）を許可し、モデルカード・VOICES.md の利用条件を確認してから音声を生成する。
-2. 試聴画面で全項目を聴き、発音と聞きやすさを評価する（ユーザー確認）。誤読があれば発音指定で直す。
-3. iPhone Safari で MP3 の再生と、現在の読み上げで選ばれる声を確認する。
+1. 試聴画面で全項目を聴き、発音と聞きやすさを評価する（ユーザー確認）。誤読があれば発音指定で直す。
+2. iPhone Safari で MP3 の再生と、現在の読み上げで選ばれる声を確認する。
