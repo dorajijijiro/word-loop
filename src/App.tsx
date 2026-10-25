@@ -7,7 +7,7 @@ import {
   type KeyboardEvent,
   type SyntheticEvent,
 } from 'react'
-import { neutralImagePlaceholder, words } from './data/words'
+import { neutralImagePlaceholder, wordRankLabels, wordRankOrder, words } from './data/words'
 import {
   advanceEncounter,
   cancelReencounter,
@@ -240,6 +240,7 @@ function App() {
               progress: latestProgressRef.current,
               understanding: understandingRef.current,
               now: getCurrentMilliseconds(),
+              rankOrder: wordRankOrder,
             })
           : retreatEncounter(sessionRef.current, { progress: latestProgressRef.current })
       // 今すぐ出せる候補がない: 上限の前でも、表示した分の報酬で遠征を終える（同じ語や期日前の語で埋めない）。
@@ -277,6 +278,7 @@ function App() {
       progress: latestProgressRef.current,
       understanding: understandingRef.current,
       now: getCurrentMilliseconds(),
+      rankOrder: wordRankOrder,
     })
     // 今出せる語が1つもなければ、空の遠征を作らずに拠点で案内する（報酬・完了遠征数は増えない）。
     if (nextSession === null) {
@@ -692,6 +694,7 @@ function App() {
                   {encounterLabel.text}
                 </span>
               )}
+              <span className="rank-label">{wordRankLabels[currentWord.rank]}</span>
             </p>
 
             {/*

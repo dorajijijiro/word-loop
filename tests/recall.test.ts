@@ -163,9 +163,11 @@ test('Recall 進行: 想起時間は速度と調和し、速すぎず長すぎ�
 
 // ---------- Word データ ----------
 
-test('Word データ: 全項目に1〜2行の短い Recall Cue があり、英語を含まない', () => {
-  assert.ok(words.length >= 20)
-  for (const word of words) {
+// Task 018 以降、Recall Cue は既存語から引き継いだ項目だけが持つ（遠征では Recall を出さないため、新しい語には付けていない）。
+test('Word データ: Recall Cue がある項目は1〜2行で短く、英語を含まない', () => {
+  const cued = words.filter((word) => word.recallCue !== undefined)
+  assert.ok(cued.length >= 20, `${cued.length}`)
+  for (const word of cued) {
     const cue = word.recallCue ?? ''
     const lines = cue.split('\n')
     assert.ok(cue.length > 0, word.id)

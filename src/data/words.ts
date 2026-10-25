@@ -1,10 +1,27 @@
-// 語彙項目の目安難易度（basic: 日常の基本語 / intermediate: 知っていても瞬時に出にくい語 / advanced: 見たことはあるが意味が曖昧になりやすい語）。
-export type WordDifficulty = 'basic' | 'intermediate' | 'advanced'
+import { businessAdvancedEntries } from './vocabulary/business-advanced.ts'
+import { businessBasicEntries } from './vocabulary/business-basic.ts'
+import { dailyAdvancedEntries } from './vocabulary/daily-advanced.ts'
+import { dailyBasicEntries } from './vocabulary/daily-basic.ts'
+import type { VocabularyEntry } from './vocabulary/entry.ts'
+import { retiredEntries } from './vocabulary/retired.ts'
+
+// 語彙のランク（Task 018）。大卒社会人の学びなおし向けに、中学レベルの語は含めない。
+// daily-basic: 日常基礎（高校基礎〜日常生活でよく使う語） / daily-advanced: 日常応用（ニュース・意見・微妙なニュアンスの語）
+// business-basic: ビジネス基礎（メール・会議・社内の定番語） / business-advanced: ビジネス応用（契約・財務・交渉・経営の語）
+export type WordRank = 'daily-basic' | 'daily-advanced' | 'business-basic' | 'business-advanced'
+
+// 易しい順。未回答の語はこの順に導入する。
+export const wordRanks: WordRank[] = ['daily-basic', 'daily-advanced', 'business-basic', 'business-advanced']
+
+export const wordRankLabels: Record<WordRank, string> = {
+  'daily-basic': '日常基礎',
+  'daily-advanced': '日常応用',
+  'business-basic': 'ビジネス基礎',
+  'business-advanced': 'ビジネス応用',
+}
 
 // 語彙項目の種類。phrase には chunk・定型表現も含める。
 export type WordType = 'word' | 'phrase' | 'phrasal-verb'
-
-export const wordDifficulties: WordDifficulty[] = ['basic', 'intermediate', 'advanced']
 
 export const wordTypes: WordType[] = ['word', 'phrase', 'phrasal-verb']
 
@@ -16,11 +33,10 @@ export type Word = {
   phrase: string
   // Recall Encounter で英語を隠して出す、日本語の短い概念Cue（1〜2行、改行は \n）。
   // 辞書的な定義ではなく、場面・意図・対比・感覚を思い浮かべやすい説明にする。すべて自作。
-  // 未設定の語は Recall の対象にしない。
+  // 未設定の語は Recall の対象にしない（Task 014 以降、遠征では Recall を出さない）。
   recallCue?: string
-  // 将来の語彙拡張用の軽いメタデータ。現在の選出・学習ロジックと UI では使わない。
-  difficulty?: WordDifficulty
-  type?: WordType
+  rank: WordRank
+  type: WordType
   image: {
     id: string
     placeholder: string
@@ -31,210 +47,37 @@ export type Word = {
 // 自然な絵文字がない抽象語・phrase 用の、意味を持たないニュートラルな表示。
 export const neutralImagePlaceholder = '◌'
 
-export const words: Word[] = [
-  // 基礎（Milestone A〜D からの20語）
-  { id: 'apple', english: 'apple', japanese: 'りんご', phrase: 'A red apple.', recallCue: '赤や緑の丸い果物。\n手に持ってかじる場面。', difficulty: 'basic', type: 'word', image: { id: 'apple', placeholder: '🍎', alt: 'りんごの表示領域' } },
-  { id: 'dog', english: 'dog', japanese: '犬', phrase: 'A happy dog.', recallCue: 'しっぽを振りながら\n散歩についてくる動物。', difficulty: 'basic', type: 'word', image: { id: 'dog', placeholder: '🐶', alt: '犬の表示領域' } },
-  { id: 'cat', english: 'cat', japanese: '猫', phrase: 'A small cat.', recallCue: '日なたで丸くなって眠る、\n気まぐれな小さい動物。', difficulty: 'basic', type: 'word', image: { id: 'cat', placeholder: '🐱', alt: '猫の表示領域' } },
-  { id: 'water', english: 'water', japanese: '水', phrase: 'Drink some water.', recallCue: 'のどが渇いたときに飲む、\n透明な液体。', difficulty: 'basic', type: 'word', image: { id: 'water', placeholder: '💧', alt: '水の表示領域' } },
-  { id: 'sun', english: 'sun', japanese: '太陽', phrase: 'The bright sun.', recallCue: '昼の空でまぶしく光り、\n体をあたためてくれるもの。', difficulty: 'basic', type: 'word', image: { id: 'sun', placeholder: '☀️', alt: '太陽の表示領域' } },
-  { id: 'book', english: 'book', japanese: '本', phrase: 'Read this book.', recallCue: 'ページをめくりながら\n文字を読み進めるもの。', difficulty: 'basic', type: 'word', image: { id: 'book', placeholder: '📘', alt: '本の表示領域' } },
-  { id: 'car', english: 'car', japanese: '車', phrase: 'A blue car.', recallCue: '道路を走り、\n人を乗せて遠くへ運ぶもの。', difficulty: 'basic', type: 'word', image: { id: 'car', placeholder: '🚗', alt: '車の表示領域' } },
-  { id: 'tree', english: 'tree', japanese: '木', phrase: 'A tall tree.', recallCue: '地面に根を張り、\n枝と葉を広げて高く伸びるもの。', difficulty: 'basic', type: 'word', image: { id: 'tree', placeholder: '🌳', alt: '木の表示領域' } },
-  { id: 'house', english: 'house', japanese: '家', phrase: 'A warm house.', recallCue: '家族が暮らし、\n一日の終わりに帰ってくる場所。', difficulty: 'basic', type: 'word', image: { id: 'house', placeholder: '🏠', alt: '家の表示領域' } },
-  { id: 'hand', english: 'hand', japanese: '手', phrase: 'Raise your hand.', recallCue: '物をつかんだり、\n振ってあいさつしたりする体の部分。', difficulty: 'basic', type: 'word', image: { id: 'hand', placeholder: '✋', alt: '手の表示領域' } },
-  { id: 'bird', english: 'bird', japanese: '鳥', phrase: 'A little bird.', recallCue: '翼を広げて空を飛び、\n木の上でさえずる生き物。', difficulty: 'basic', type: 'word', image: { id: 'bird', placeholder: '🐦', alt: '鳥の表示領域' } },
-  { id: 'fish', english: 'fish', japanese: '魚', phrase: 'A silver fish.', recallCue: '水の中をひれで泳ぐ、\nうろこのある生き物。', difficulty: 'basic', type: 'word', image: { id: 'fish', placeholder: '🐟', alt: '魚の表示領域' } },
-  { id: 'flower', english: 'flower', japanese: '花', phrase: 'A yellow flower.', recallCue: '庭や野原で色とりどりに咲き、\nいい香りがするもの。', difficulty: 'basic', type: 'word', image: { id: 'flower', placeholder: '🌼', alt: '花の表示領域' } },
-  { id: 'moon', english: 'moon', japanese: '月', phrase: 'The full moon.', recallCue: '夜空に浮かび、\n日ごとに満ちたり欠けたりするもの。', difficulty: 'basic', type: 'word', image: { id: 'moon', placeholder: '🌙', alt: '月の表示領域' } },
-  { id: 'chair', english: 'chair', japanese: '椅子', phrase: 'Sit on chair.', recallCue: '机の前に置いて、\n腰をおろすもの。', difficulty: 'basic', type: 'word', image: { id: 'chair', placeholder: '🪑', alt: '椅子の表示領域' } },
-  { id: 'shoe', english: 'shoe', japanese: '靴', phrase: 'A soft shoe.', recallCue: '外を歩くとき、\n足を守るために履くもの。', difficulty: 'basic', type: 'word', image: { id: 'shoe', placeholder: '👟', alt: '靴の表示領域' } },
-  { id: 'cup', english: 'cup', japanese: 'カップ', phrase: 'A blue cup.', recallCue: '温かい飲み物を入れて、\n持ち手をつかんで飲むもの。', difficulty: 'basic', type: 'word', image: { id: 'cup', placeholder: '☕', alt: 'カップの表示領域' } },
-  { id: 'door', english: 'door', japanese: 'ドア', phrase: 'Open the door.', recallCue: '部屋に入ったり出たりするときに\n開け閉めするもの。', difficulty: 'basic', type: 'word', image: { id: 'door', placeholder: '🚪', alt: 'ドアの表示領域' } },
-  { id: 'bread', english: 'bread', japanese: 'パン', phrase: 'Fresh warm bread.', recallCue: '朝ごはんに焼いてバターを塗る、\n小麦からつくる食べもの。', difficulty: 'basic', type: 'word', image: { id: 'bread', placeholder: '🍞', alt: 'パンの表示領域' } },
-  { id: 'rain', english: 'rain', japanese: '雨', phrase: 'Rain is falling.', recallCue: '空から水滴が降っていて、\n傘をさす場面。', difficulty: 'basic', type: 'word', image: { id: 'rain', placeholder: '🌧️', alt: '雨の表示領域' } },
-  // 基礎（日常的でよく使う語）
-  { id: 'family', english: 'family', japanese: '家族', phrase: 'my family at home', recallCue: '同じ家で暮らし、\n夕飯の食卓を囲む人たち。', difficulty: 'basic', type: 'word', image: { id: 'family', placeholder: '👪', alt: '家族の表示領域' } },
-  { id: 'food', english: 'food', japanese: '食べもの', phrase: 'food and drink', recallCue: 'お腹がすいたときに\n口に入れるもの全般。', difficulty: 'basic', type: 'word', image: { id: 'food', placeholder: '🍽️', alt: '食べものの表示領域' } },
-  { id: 'school', english: 'school', japanese: '学校', phrase: 'go to school', recallCue: '制服で通い、\n授業や休み時間がある場所。', difficulty: 'basic', type: 'word', image: { id: 'school', placeholder: '🏫', alt: '学校の表示領域' } },
-  { id: 'work', english: 'work', japanese: '仕事 / 働く', phrase: 'work from home', recallCue: '朝から夕方まで\n役目を果たして給料を得る。', difficulty: 'basic', type: 'word', image: { id: 'work', placeholder: '💼', alt: '仕事 / 働くの表示領域' } },
-  { id: 'morning', english: 'morning', japanese: '朝', phrase: 'early in the morning', recallCue: '目覚ましが鳴って、\n一日が始まる時間帯。', difficulty: 'basic', type: 'word', image: { id: 'morning', placeholder: '🌅', alt: '朝の表示領域' } },
-  { id: 'night', english: 'night', japanese: '夜', phrase: 'late at night', recallCue: '外が暗くなり、\n街の明かりがともる時間。', difficulty: 'basic', type: 'word', image: { id: 'night', placeholder: '🌃', alt: '夜の表示領域' } },
-  { id: 'walk', english: 'walk', japanese: '歩く', phrase: 'walk to the station', recallCue: '足を一歩ずつ前に出して、\n自分の足で進む。', difficulty: 'basic', type: 'word', image: { id: 'walk', placeholder: '🚶', alt: '歩くの表示領域' } },
-  { id: 'open', english: 'open', japanese: '開ける', phrase: 'open the window', recallCue: '閉じていたものを広げて、\n中が見えるようにする。', difficulty: 'basic', type: 'word', image: { id: 'open', placeholder: neutralImagePlaceholder, alt: '開けるの表示領域' } },
-  { id: 'close', english: 'close', japanese: '閉める / 閉じる', phrase: 'close the door', recallCue: '開いているものを動かして、\n入り口をふさぐ。', difficulty: 'basic', type: 'word', image: { id: 'close', placeholder: neutralImagePlaceholder, alt: '閉める / 閉じるの表示領域' } },
-  { id: 'big', english: 'big', japanese: '大きい', phrase: 'a big box', recallCue: '見上げたり両手を広げたりする\nくらいのサイズ感。', difficulty: 'basic', type: 'word', image: { id: 'big', placeholder: neutralImagePlaceholder, alt: '大きいの表示領域' } },
-  { id: 'small', english: 'small', japanese: '小さい', phrase: 'a small room', recallCue: '手のひらにのるくらいの、\nこぢんまりしたサイズ。', difficulty: 'basic', type: 'word', image: { id: 'small', placeholder: neutralImagePlaceholder, alt: '小さいの表示領域' } },
-  { id: 'friend', english: 'friend', japanese: '友だち', phrase: 'my best friend', recallCue: '気がねなく話せて、\n一緒にいると楽しい相手。', difficulty: 'basic', type: 'word', image: { id: 'friend', placeholder: neutralImagePlaceholder, alt: '友だちの表示領域' } },
-  { id: 'time', english: 'time', japanese: '時間', phrase: 'no time to rest', recallCue: '時計の針が進むにつれて\n過ぎていくもの。', difficulty: 'basic', type: 'word', image: { id: 'time', placeholder: '⏳', alt: '時間の表示領域' } },
-  { id: 'week', english: 'week', japanese: '週', phrase: 'next week', recallCue: '月曜から日曜まで、\n七日間のひとまとまり。', difficulty: 'basic', type: 'word', image: { id: 'week', placeholder: '📅', alt: '週の表示領域' } },
-  { id: 'city', english: 'city', japanese: '都市 / 街', phrase: 'a big city', recallCue: '高いビルが並び、\n人と車が行き交う場所。', difficulty: 'basic', type: 'word', image: { id: 'city', placeholder: '🏙️', alt: '都市 / 街の表示領域' } },
-  { id: 'train', english: 'train', japanese: '電車', phrase: 'take the train', recallCue: '線路の上を走り、\n駅ごとに人を乗せていくもの。', difficulty: 'basic', type: 'word', image: { id: 'train', placeholder: '🚃', alt: '電車の表示領域' } },
-  { id: 'money', english: 'money', japanese: 'お金', phrase: 'save money', recallCue: '財布に入れて、\n買い物のときに払うもの。', difficulty: 'basic', type: 'word', image: { id: 'money', placeholder: '💰', alt: 'お金の表示領域' } },
-  { id: 'phone', english: 'phone', japanese: '電話 / スマホ', phrase: 'answer the phone', recallCue: '離れた人と話したり、\n連絡を取ったりする道具。', difficulty: 'basic', type: 'word', image: { id: 'phone', placeholder: '📱', alt: '電話 / スマホの表示領域' } },
-  { id: 'window', english: 'window', japanese: '窓', phrase: 'look out the window', recallCue: '壁にあるガラス越しに\n外の景色が見えるところ。', difficulty: 'basic', type: 'word', image: { id: 'window', placeholder: '🪟', alt: '窓の表示領域' } },
-  { id: 'bed', english: 'bed', japanese: 'ベッド', phrase: 'go to bed', recallCue: '夜に横になって、\n布団をかけて眠る場所。', difficulty: 'basic', type: 'word', image: { id: 'bed', placeholder: '🛏️', alt: 'ベッドの表示領域' } },
-  { id: 'room', english: 'room', japanese: '部屋', phrase: 'a quiet room', recallCue: '家の中で壁に囲まれた、\nひとつひとつの空間。', difficulty: 'basic', type: 'word', image: { id: 'room', placeholder: neutralImagePlaceholder, alt: '部屋の表示領域' } },
-  { id: 'eat', english: 'eat', japanese: '食べる', phrase: 'eat lunch together', recallCue: '口に運んでよくかみ、\n飲みこむ。', difficulty: 'basic', type: 'word', image: { id: 'eat', placeholder: '🍴', alt: '食べるの表示領域' } },
-  { id: 'sleep', english: 'sleep', japanese: '眠る', phrase: 'sleep well', recallCue: '目を閉じて意識が遠のき、\n体を休めている状態。', difficulty: 'basic', type: 'word', image: { id: 'sleep', placeholder: '😴', alt: '眠るの表示領域' } },
-  { id: 'write', english: 'write', japanese: '書く', phrase: 'write a letter', recallCue: 'ペンを動かして、\n言葉を紙に残す。', difficulty: 'basic', type: 'word', image: { id: 'write', placeholder: '✍️', alt: '書くの表示領域' } },
-  { id: 'listen', english: 'listen', japanese: '聞く / 耳を傾ける', phrase: 'listen to the radio', recallCue: '相手の話や音に、\n意識して耳を向ける。', difficulty: 'basic', type: 'word', image: { id: 'listen', placeholder: '👂', alt: '聞く / 耳を傾けるの表示領域' } },
-  { id: 'buy', english: 'buy', japanese: '買う', phrase: 'buy a ticket', recallCue: 'お店でお金を払って、\n品物を自分のものにする。', difficulty: 'basic', type: 'word', image: { id: 'buy', placeholder: '🛒', alt: '買うの表示領域' } },
-  { id: 'give', english: 'give', japanese: 'あげる / 与える', phrase: 'give a present', recallCue: '自分の手から\n相手の手へ渡す。', difficulty: 'basic', type: 'word', image: { id: 'give', placeholder: '🎁', alt: 'あげる / 与えるの表示領域' } },
-  { id: 'find', english: 'find', japanese: '見つける', phrase: 'find my keys', recallCue: '探していたものが\nようやく目に入る瞬間。', difficulty: 'basic', type: 'word', image: { id: 'find', placeholder: '🔍', alt: '見つけるの表示領域' } },
-  { id: 'help', english: 'help', japanese: '助ける / 手伝う', phrase: 'help each other', recallCue: '困っている人に\n手を貸す。', difficulty: 'basic', type: 'word', image: { id: 'help', placeholder: neutralImagePlaceholder, alt: '助ける / 手伝うの表示領域' } },
-  { id: 'start', english: 'start', japanese: '始める', phrase: 'start a new job', recallCue: 'まだ何もない状態から、\n最初の一歩を踏み出す。', difficulty: 'basic', type: 'word', image: { id: 'start', placeholder: neutralImagePlaceholder, alt: '始めるの表示領域' } },
-  { id: 'wait', english: 'wait', japanese: '待つ', phrase: 'wait for the bus', recallCue: '何かが来るまで、\nその場で時間をやり過ごす。', difficulty: 'basic', type: 'word', image: { id: 'wait', placeholder: neutralImagePlaceholder, alt: '待つの表示領域' } },
-  { id: 'learn', english: 'learn', japanese: '学ぶ / 身につける', phrase: 'learn to swim', recallCue: '知らなかったことが、\n少しずつ自分のものになる。', difficulty: 'basic', type: 'word', image: { id: 'learn', placeholder: neutralImagePlaceholder, alt: '学ぶ / 身につけるの表示領域' } },
-  { id: 'happy', english: 'happy', japanese: 'うれしい / 幸せな', phrase: 'a happy day', recallCue: '思わず顔がほころぶ、\n満ち足りた気持ち。', difficulty: 'basic', type: 'word', image: { id: 'happy', placeholder: '😊', alt: 'うれしい / 幸せなの表示領域' } },
-  { id: 'sad', english: 'sad', japanese: '悲しい', phrase: 'a sad story', recallCue: '胸が重くなって、\n涙が出そうな気持ち。', difficulty: 'basic', type: 'word', image: { id: 'sad', placeholder: '😢', alt: '悲しいの表示領域' } },
-  { id: 'hot', english: 'hot', japanese: '暑い / 熱い', phrase: 'a hot summer day', recallCue: '汗がにじむような、\n強い熱を感じる状態。', difficulty: 'basic', type: 'word', image: { id: 'hot', placeholder: '🔥', alt: '暑い / 熱いの表示領域' } },
-  { id: 'cold', english: 'cold', japanese: '寒い / 冷たい', phrase: 'a cold winter morning', recallCue: '肩をすくめて\n手をこすり合わせたくなる感じ。', difficulty: 'basic', type: 'word', image: { id: 'cold', placeholder: '🥶', alt: '寒い / 冷たいの表示領域' } },
-  { id: 'cheap', english: 'cheap', japanese: '安い', phrase: 'a cheap lunch', recallCue: '思ったより少ない額で\n買えてしまう感じ。', difficulty: 'basic', type: 'word', image: { id: 'cheap', placeholder: neutralImagePlaceholder, alt: '安いの表示領域' } },
-  { id: 'fast', english: 'fast', japanese: '速い', phrase: 'a fast runner', recallCue: 'あっという間に\n遠くまで進んでしまう感じ。', difficulty: 'basic', type: 'word', image: { id: 'fast', placeholder: neutralImagePlaceholder, alt: '速いの表示領域' } },
-  { id: 'early', english: 'early', japanese: '早い / 早く', phrase: 'get up early', recallCue: '決めた時刻より前に、\n先回りしている感じ。', difficulty: 'basic', type: 'word', image: { id: 'early', placeholder: neutralImagePlaceholder, alt: '早い / 早くの表示領域' } },
-  { id: 'late', english: 'late', japanese: '遅れて / 遅い', phrase: 'late for school', recallCue: '約束の時刻を過ぎてから\n慌てて着く感じ。', difficulty: 'basic', type: 'word', image: { id: 'late', placeholder: neutralImagePlaceholder, alt: '遅れて / 遅いの表示領域' } },
-  { id: 'quiet', english: 'quiet', japanese: '静かな', phrase: 'a quiet library', recallCue: '物音がほとんどなく、\nしんとしている感じ。', difficulty: 'basic', type: 'word', image: { id: 'quiet', placeholder: neutralImagePlaceholder, alt: '静かなの表示領域' } },
-  { id: 'busy', english: 'busy', japanese: '忙しい', phrase: 'a busy day at work', recallCue: 'やることが次々にあって、\n手が空かない感じ。', difficulty: 'basic', type: 'word', image: { id: 'busy', placeholder: neutralImagePlaceholder, alt: '忙しいの表示領域' } },
-  { id: 'tired', english: 'tired', japanese: '疲れた', phrase: 'tired after work', recallCue: '一日動いたあとで、\n体が重く座りこみたい感じ。', difficulty: 'basic', type: 'word', image: { id: 'tired', placeholder: neutralImagePlaceholder, alt: '疲れたの表示領域' } },
-  { id: 'hungry', english: 'hungry', japanese: 'お腹がすいた', phrase: 'hungry after a long walk', recallCue: 'お腹が鳴って、\n何か口にしたくてたまらない。', difficulty: 'basic', type: 'word', image: { id: 'hungry', placeholder: neutralImagePlaceholder, alt: 'お腹がすいたの表示領域' } },
-  { id: 'rice', english: 'rice', japanese: 'ご飯 / 米', phrase: 'a bowl of rice', recallCue: 'お茶わんに盛られた、\n白くて温かい主食。', difficulty: 'basic', type: 'word', image: { id: 'rice', placeholder: '🍚', alt: 'ご飯 / 米の表示領域' } },
-  { id: 'egg', english: 'egg', japanese: '卵', phrase: 'a boiled egg', recallCue: '鶏が産む、\n殻を割ると黄身が出てくるもの。', difficulty: 'basic', type: 'word', image: { id: 'egg', placeholder: '🥚', alt: '卵の表示領域' } },
-  { id: 'milk', english: 'milk', japanese: '牛乳', phrase: 'a glass of milk', recallCue: '牛から搾る、\n白い飲みもの。', difficulty: 'basic', type: 'word', image: { id: 'milk', placeholder: '🥛', alt: '牛乳の表示領域' } },
-  { id: 'river', english: 'river', japanese: '川', phrase: 'swim in the river', recallCue: '山から海へ向かって、\n水が流れ続けているところ。', difficulty: 'basic', type: 'word', image: { id: 'river', placeholder: '🏞️', alt: '川の表示領域' } },
-  { id: 'mountain', english: 'mountain', japanese: '山', phrase: 'climb a mountain', recallCue: '地面が高く盛り上がり、\n頂上を目指して登るところ。', difficulty: 'basic', type: 'word', image: { id: 'mountain', placeholder: '⛰️', alt: '山の表示領域' } },
-  { id: 'sea', english: 'sea', japanese: '海', phrase: 'a house by the sea', recallCue: '水平線まで広がる、\nしょっぱい水。', difficulty: 'basic', type: 'word', image: { id: 'sea', placeholder: '🌊', alt: '海の表示領域' } },
-  { id: 'sky', english: 'sky', japanese: '空', phrase: 'a clear blue sky', recallCue: '見上げると頭上に広がる、\n雲が流れていく場所。', difficulty: 'basic', type: 'word', image: { id: 'sky', placeholder: neutralImagePlaceholder, alt: '空の表示領域' } },
-  { id: 'snow', english: 'snow', japanese: '雪', phrase: 'snow in winter', recallCue: '冬の寒い日に、\n白く静かに降り積もるもの。', difficulty: 'basic', type: 'word', image: { id: 'snow', placeholder: '❄️', alt: '雪の表示領域' } },
-  { id: 'doctor', english: 'doctor', japanese: '医者', phrase: 'see a doctor', recallCue: '白衣を着て、\n具合の悪い人を診る人。', difficulty: 'basic', type: 'word', image: { id: 'doctor', placeholder: '🩺', alt: '医者の表示領域' } },
-  { id: 'hospital', english: 'hospital', japanese: '病院', phrase: 'stay in the hospital', recallCue: 'けがや病気のときに行き、\n治療を受ける場所。', difficulty: 'basic', type: 'word', image: { id: 'hospital', placeholder: '🏥', alt: '病院の表示領域' } },
-  { id: 'station', english: 'station', japanese: '駅', phrase: 'meet at the station', recallCue: '電車に乗り降りするために\n人が集まる場所。', difficulty: 'basic', type: 'word', image: { id: 'station', placeholder: '🚉', alt: '駅の表示領域' } },
-  { id: 'bag', english: 'bag', japanese: 'かばん / 袋', phrase: 'carry a heavy bag', recallCue: '荷物を入れて、\n肩にかけたり手に持ったりするもの。', difficulty: 'basic', type: 'word', image: { id: 'bag', placeholder: '👜', alt: 'かばん / 袋の表示領域' } },
-  { id: 'key', english: 'key', japanese: '鍵', phrase: 'lose my key', recallCue: '差しこんで回すと、\nドアが開くもの。', difficulty: 'basic', type: 'word', image: { id: 'key', placeholder: '🔑', alt: '鍵の表示領域' } },
-  { id: 'clock', english: 'clock', japanese: '時計', phrase: 'look at the clock', recallCue: '壁にかかっていて、\n針で今の時刻を教えてくれる。', difficulty: 'basic', type: 'word', image: { id: 'clock', placeholder: '🕒', alt: '時計の表示領域' } },
-  { id: 'music', english: 'music', japanese: '音楽', phrase: 'play music', recallCue: 'メロディーとリズムが\n耳に心地よく流れてくるもの。', difficulty: 'basic', type: 'word', image: { id: 'music', placeholder: '🎵', alt: '音楽の表示領域' } },
-  { id: 'child', english: 'child', japanese: '子ども', phrase: 'a small child', recallCue: 'まだ背が低く、\n大人に見守られて育つ年ごろ。', difficulty: 'basic', type: 'word', image: { id: 'child', placeholder: '🧒', alt: '子どもの表示領域' } },
-  // 中級（意味は知っていても瞬時に出にくい語）
-  { id: 'improve', english: 'improve', japanese: '改善する / 良くする', phrase: 'improve my English', recallCue: '前より少しでも\n良い状態に持っていく。', difficulty: 'intermediate', type: 'word', image: { id: 'improve', placeholder: neutralImagePlaceholder, alt: '改善する / 良くするの表示領域' } },
-  { id: 'provide', english: 'provide', japanese: '提供する', phrase: 'provide free water', recallCue: '必要としている人に、\n用意したものを差し出す。', difficulty: 'intermediate', type: 'word', image: { id: 'provide', placeholder: neutralImagePlaceholder, alt: '提供するの表示領域' } },
-  { id: 'increase', english: 'increase', japanese: '増える / 増やす', phrase: 'increase the price', recallCue: '数や量が、\nじわじわ上に伸びていく。', difficulty: 'intermediate', type: 'word', image: { id: 'increase', placeholder: neutralImagePlaceholder, alt: '増える / 増やすの表示領域' } },
-  { id: 'reduce', english: 'reduce', japanese: '減らす', phrase: 'reduce waste', recallCue: '多すぎるものを、\n意識して少なくしていく。', difficulty: 'intermediate', type: 'word', image: { id: 'reduce', placeholder: neutralImagePlaceholder, alt: '減らすの表示領域' } },
-  { id: 'available', english: 'available', japanese: '利用できる / 手が空いている', phrase: 'available on weekends', recallCue: '今すぐ使える、\nまたは今なら対応できる状態。', difficulty: 'intermediate', type: 'word', image: { id: 'available', placeholder: neutralImagePlaceholder, alt: '利用できる / 手が空いているの表示領域' } },
-  { id: 'situation', english: 'situation', japanese: '状況', phrase: 'a difficult situation', recallCue: '今まわりで起きていること全体の\nありさま。', difficulty: 'intermediate', type: 'word', image: { id: 'situation', placeholder: neutralImagePlaceholder, alt: '状況の表示領域' } },
-  { id: 'environment', english: 'environment', japanese: '環境', phrase: 'protect the environment', recallCue: '自分を取り囲んでいる\n自然や周りの条件。', difficulty: 'intermediate', type: 'word', image: { id: 'environment', placeholder: neutralImagePlaceholder, alt: '環境の表示領域' } },
-  { id: 'decision', english: 'decision', japanese: '決定 / 決断', phrase: 'make a decision', recallCue: '迷った末に、\n「こうする」と心を決めること。', difficulty: 'intermediate', type: 'word', image: { id: 'decision', placeholder: neutralImagePlaceholder, alt: '決定 / 決断の表示領域' } },
-  { id: 'opportunity', english: 'opportunity', japanese: '機会 / チャンス', phrase: 'a great opportunity', recallCue: '今つかめば何かにつながる、\nめったにない巡り合わせ。', difficulty: 'intermediate', type: 'word', image: { id: 'opportunity', placeholder: neutralImagePlaceholder, alt: '機会 / チャンスの表示領域' } },
-  { id: 'experience', english: 'experience', japanese: '経験', phrase: 'a lot of experience', recallCue: '実際にやってみて、\n体で覚えたこと。', difficulty: 'intermediate', type: 'word', image: { id: 'experience', placeholder: neutralImagePlaceholder, alt: '経験の表示領域' } },
-  { id: 'suggest', english: 'suggest', japanese: '提案する', phrase: 'suggest a better plan', recallCue: '「こうしてみては？」と\n相手にそっと案を出す。', difficulty: 'intermediate', type: 'word', image: { id: 'suggest', placeholder: neutralImagePlaceholder, alt: '提案するの表示領域' } },
-  { id: 'compare', english: 'compare', japanese: '比べる', phrase: 'compare two prices', recallCue: '二つを並べて、\nどこが違うかを見る。', difficulty: 'intermediate', type: 'word', image: { id: 'compare', placeholder: neutralImagePlaceholder, alt: '比べるの表示領域' } },
-  { id: 'prepare', english: 'prepare', japanese: '準備する', phrase: 'prepare for the test', recallCue: '本番の前に、\n必要なものを整えておく。', difficulty: 'intermediate', type: 'word', image: { id: 'prepare', placeholder: neutralImagePlaceholder, alt: '準備するの表示領域' } },
-  { id: 'explain', english: 'explain', japanese: '説明する', phrase: 'explain the rules', recallCue: '相手が分かるように、\n順を追って話して伝える。', difficulty: 'intermediate', type: 'word', image: { id: 'explain', placeholder: neutralImagePlaceholder, alt: '説明するの表示領域' } },
-  { id: 'describe', english: 'describe', japanese: '描写する / 言い表す', phrase: 'describe your room', recallCue: '見たものの様子を、\n言葉で絵のように伝える。', difficulty: 'intermediate', type: 'word', image: { id: 'describe', placeholder: neutralImagePlaceholder, alt: '描写する / 言い表すの表示領域' } },
-  { id: 'require', english: 'require', japanese: '必要とする / 求める', phrase: 'require a password', recallCue: 'これがないと先に進めない、\nと条件にされている。', difficulty: 'intermediate', type: 'word', image: { id: 'require', placeholder: neutralImagePlaceholder, alt: '必要とする / 求めるの表示領域' } },
-  { id: 'include', english: 'include', japanese: '含む', phrase: 'include breakfast', recallCue: '全体の中に、\nそれもちゃんと入っている。', difficulty: 'intermediate', type: 'word', image: { id: 'include', placeholder: neutralImagePlaceholder, alt: '含むの表示領域' } },
-  { id: 'support', english: 'support', japanese: '支える / 支援する', phrase: 'support my family', recallCue: '倒れないように、\n後ろから力を貸す。', difficulty: 'intermediate', type: 'word', image: { id: 'support', placeholder: neutralImagePlaceholder, alt: '支える / 支援するの表示領域' } },
-  { id: 'achieve', english: 'achieve', japanese: '達成する', phrase: 'achieve a goal', recallCue: '努力を重ねて、\n目指していた所にたどり着く。', difficulty: 'intermediate', type: 'word', image: { id: 'achieve', placeholder: neutralImagePlaceholder, alt: '達成するの表示領域' } },
-  { id: 'manage', english: 'manage', japanese: '管理する / やりくりする', phrase: 'manage a small team', recallCue: '限られた中で工夫して、\n物事をうまく回していく。', difficulty: 'intermediate', type: 'word', image: { id: 'manage', placeholder: neutralImagePlaceholder, alt: '管理する / やりくりするの表示領域' } },
-  { id: 'avoid', english: 'avoid', japanese: '避ける', phrase: 'avoid the crowd', recallCue: 'ぶつからないように、\nわざと遠回りする感じ。', difficulty: 'intermediate', type: 'word', image: { id: 'avoid', placeholder: neutralImagePlaceholder, alt: '避けるの表示領域' } },
-  { id: 'allow', english: 'allow', japanese: '許す / 認める', phrase: 'allow children to play', recallCue: '「やってもいいよ」と\nその行動に許可を出す。', difficulty: 'intermediate', type: 'word', image: { id: 'allow', placeholder: neutralImagePlaceholder, alt: '許す / 認めるの表示領域' } },
-  { id: 'expect', english: 'expect', japanese: '予期する / 期待する', phrase: 'expect good news', recallCue: 'たぶんこうなるだろうと、\n先を見込んでいる。', difficulty: 'intermediate', type: 'word', image: { id: 'expect', placeholder: neutralImagePlaceholder, alt: '予期する / 期待するの表示領域' } },
-  { id: 'consider', english: 'consider', japanese: 'よく考える / 検討する', phrase: 'consider other options', recallCue: 'すぐ決めずに、\nいろいろな面から考えてみる。', difficulty: 'intermediate', type: 'word', image: { id: 'consider', placeholder: neutralImagePlaceholder, alt: 'よく考える / 検討するの表示領域' } },
-  { id: 'recognize', english: 'recognize', japanese: '見覚えがある / 認識する', phrase: 'recognize her face', recallCue: '「あ、前に見たことがある」と\n気づく瞬間。', difficulty: 'intermediate', type: 'word', image: { id: 'recognize', placeholder: neutralImagePlaceholder, alt: '見覚えがある / 認識するの表示領域' } },
-  { id: 'respond', english: 'respond', japanese: '応答する / 反応する', phrase: 'respond to an email', recallCue: '呼びかけや問いかけに、\n返事や行動で応える。', difficulty: 'intermediate', type: 'word', image: { id: 'respond', placeholder: neutralImagePlaceholder, alt: '応答する / 反応するの表示領域' } },
-  { id: 'depend', english: 'depend', japanese: '頼る / 次第である', phrase: 'depend on the weather', recallCue: 'それがどうなるかで、\n結果が変わってしまう。', difficulty: 'intermediate', type: 'word', image: { id: 'depend', placeholder: neutralImagePlaceholder, alt: '頼る / 次第であるの表示領域' } },
-  { id: 'prefer', english: 'prefer', japanese: '～の方を好む', phrase: 'prefer tea to coffee', recallCue: 'どちらもいいけれど、\nどちらかと言えばこっち。', difficulty: 'intermediate', type: 'word', image: { id: 'prefer', placeholder: neutralImagePlaceholder, alt: '～の方を好むの表示領域' } },
-  { id: 'admit', english: 'admit', japanese: '認める', phrase: 'admit a mistake', recallCue: '言いにくいけれど、\n自分の非を受け入れる。', difficulty: 'intermediate', type: 'word', image: { id: 'admit', placeholder: neutralImagePlaceholder, alt: '認めるの表示領域' } },
-  { id: 'encourage', english: 'encourage', japanese: '励ます / 促す', phrase: 'encourage young people', recallCue: '「やってみなよ」と、\n相手の背中を押す。', difficulty: 'intermediate', type: 'word', image: { id: 'encourage', placeholder: neutralImagePlaceholder, alt: '励ます / 促すの表示領域' } },
-  { id: 'purpose', english: 'purpose', japanese: '目的', phrase: 'the purpose of the trip', recallCue: 'それをする理由の先にある、\nたどり着きたい所。', difficulty: 'intermediate', type: 'word', image: { id: 'purpose', placeholder: neutralImagePlaceholder, alt: '目的の表示領域' } },
-  { id: 'result', english: 'result', japanese: '結果', phrase: 'the final result', recallCue: 'やってみた後に、\n最後に出てきたもの。', difficulty: 'intermediate', type: 'word', image: { id: 'result', placeholder: neutralImagePlaceholder, alt: '結果の表示領域' } },
-  { id: 'effect', english: 'effect', japanese: '効果 / 影響', phrase: 'a good effect on sleep', recallCue: '何かをしたことで、\n周りに表れた変化。', difficulty: 'intermediate', type: 'word', image: { id: 'effect', placeholder: neutralImagePlaceholder, alt: '効果 / 影響の表示領域' } },
-  { id: 'reason', english: 'reason', japanese: '理由', phrase: 'for this reason', recallCue: '「どうして？」と聞かれて\n答える中身。', difficulty: 'intermediate', type: 'word', image: { id: 'reason', placeholder: neutralImagePlaceholder, alt: '理由の表示領域' } },
-  { id: 'solution', english: 'solution', japanese: '解決策', phrase: 'find a solution', recallCue: '行き詰まった問題を\nほどくための答え。', difficulty: 'intermediate', type: 'word', image: { id: 'solution', placeholder: neutralImagePlaceholder, alt: '解決策の表示領域' } },
-  { id: 'method', english: 'method', japanese: '方法 / やり方', phrase: 'a simple method', recallCue: '目的にたどり着くための、\n決まった手順。', difficulty: 'intermediate', type: 'word', image: { id: 'method', placeholder: neutralImagePlaceholder, alt: '方法 / やり方の表示領域' } },
-  { id: 'process', english: 'process', japanese: '過程 / 手順', phrase: 'the learning process', recallCue: '始まりから終わりまで、\n一歩ずつ進む流れ。', difficulty: 'intermediate', type: 'word', image: { id: 'process', placeholder: neutralImagePlaceholder, alt: '過程 / 手順の表示領域' } },
-  { id: 'condition', english: 'condition', japanese: '状態 / 条件', phrase: 'in good condition', recallCue: 'それが今どんな具合か、\nという調子のこと。', difficulty: 'intermediate', type: 'word', image: { id: 'condition', placeholder: neutralImagePlaceholder, alt: '状態 / 条件の表示領域' } },
-  { id: 'advantage', english: 'advantage', japanese: '利点 / 有利な点', phrase: 'a big advantage', recallCue: '他よりも一歩前に出られる、\nありがたい強み。', difficulty: 'intermediate', type: 'word', image: { id: 'advantage', placeholder: neutralImagePlaceholder, alt: '利点 / 有利な点の表示領域' } },
-  { id: 'value', english: 'value', japanese: '価値', phrase: 'the value of time', recallCue: 'お金や時間をかける\nだけの値打ち。', difficulty: 'intermediate', type: 'word', image: { id: 'value', placeholder: neutralImagePlaceholder, alt: '価値の表示領域' } },
-  { id: 'behavior', english: 'behavior', japanese: 'ふるまい / 行動', phrase: 'good behavior', recallCue: '人前での態度や、\n何をどうするかという様子。', difficulty: 'intermediate', type: 'word', image: { id: 'behavior', placeholder: neutralImagePlaceholder, alt: 'ふるまい / 行動の表示領域' } },
-  { id: 'quality', english: 'quality', japanese: '質 / 品質', phrase: 'high quality', recallCue: '数ではなく、\nどれだけ出来がいいか。', difficulty: 'intermediate', type: 'word', image: { id: 'quality', placeholder: neutralImagePlaceholder, alt: '質 / 品質の表示領域' } },
-  { id: 'amount', english: 'amount', japanese: '量 / 額', phrase: 'a small amount of salt', recallCue: 'どれくらいあるか、\nという分量のこと。', difficulty: 'intermediate', type: 'word', image: { id: 'amount', placeholder: neutralImagePlaceholder, alt: '量 / 額の表示領域' } },
-  { id: 'attitude', english: 'attitude', japanese: '態度 / 姿勢', phrase: 'a positive attitude', recallCue: '物事に向き合うときの、\n心の構え方。', difficulty: 'intermediate', type: 'word', image: { id: 'attitude', placeholder: neutralImagePlaceholder, alt: '態度 / 姿勢の表示領域' } },
-  { id: 'relationship', english: 'relationship', japanese: '関係', phrase: 'a close relationship', recallCue: '人と人とのあいだにある、\nつながりの具合。', difficulty: 'intermediate', type: 'word', image: { id: 'relationship', placeholder: neutralImagePlaceholder, alt: '関係の表示領域' } },
-  { id: 'responsibility', english: 'responsibility', japanese: '責任', phrase: 'take responsibility', recallCue: 'うまくいかなかったとき、\n自分が引き受けるもの。', difficulty: 'intermediate', type: 'word', image: { id: 'responsibility', placeholder: neutralImagePlaceholder, alt: '責任の表示領域' } },
-  { id: 'knowledge', english: 'knowledge', japanese: '知識', phrase: 'basic knowledge', recallCue: '学んで頭の中に\nたくわえてきたこと。', difficulty: 'intermediate', type: 'word', image: { id: 'knowledge', placeholder: neutralImagePlaceholder, alt: '知識の表示領域' } },
-  { id: 'effort', english: 'effort', japanese: '努力', phrase: 'make an effort', recallCue: '楽ではないけれど、\n力を注いでがんばること。', difficulty: 'intermediate', type: 'word', image: { id: 'effort', placeholder: neutralImagePlaceholder, alt: '努力の表示領域' } },
-  { id: 'challenge', english: 'challenge', japanese: '挑戦 / 難題', phrase: 'a new challenge', recallCue: '簡単ではないからこそ、\n挑みがいのあること。', difficulty: 'intermediate', type: 'word', image: { id: 'challenge', placeholder: neutralImagePlaceholder, alt: '挑戦 / 難題の表示領域' } },
-  { id: 'feature', english: 'feature', japanese: '特徴 / 機能', phrase: 'a new feature', recallCue: '他と見分けがつく、\nそれならではの点。', difficulty: 'intermediate', type: 'word', image: { id: 'feature', placeholder: neutralImagePlaceholder, alt: '特徴 / 機能の表示領域' } },
-  { id: 'necessary', english: 'necessary', japanese: '必要な', phrase: 'if necessary', recallCue: 'これがないと\n困ってしまう。', difficulty: 'intermediate', type: 'word', image: { id: 'necessary', placeholder: neutralImagePlaceholder, alt: '必要なの表示領域' } },
-  { id: 'possible', english: 'possible', japanese: '可能な', phrase: 'if possible', recallCue: 'やろうと思えば、\nできないことはない。', difficulty: 'intermediate', type: 'word', image: { id: 'possible', placeholder: neutralImagePlaceholder, alt: '可能なの表示領域' } },
-  { id: 'similar', english: 'similar', japanese: '似ている', phrase: 'a similar idea', recallCue: 'まったく同じではないけれど、\nほとんど変わらない。', difficulty: 'intermediate', type: 'word', image: { id: 'similar', placeholder: neutralImagePlaceholder, alt: '似ているの表示領域' } },
-  { id: 'specific', english: 'specific', japanese: '具体的な / 特定の', phrase: 'a specific example', recallCue: 'ぼんやりではなく、\nはっきりこれと指せる。', difficulty: 'intermediate', type: 'word', image: { id: 'specific', placeholder: neutralImagePlaceholder, alt: '具体的な / 特定のの表示領域' } },
-  { id: 'common', english: 'common', japanese: 'よくある / 共通の', phrase: 'a common mistake', recallCue: 'どこでも見かける、\nめずらしくないもの。', difficulty: 'intermediate', type: 'word', image: { id: 'common', placeholder: neutralImagePlaceholder, alt: 'よくある / 共通のの表示領域' } },
-  { id: 'recent', english: 'recent', japanese: '最近の', phrase: 'recent news', recallCue: 'ついこのあいだ\n起きたばかりのこと。', difficulty: 'intermediate', type: 'word', image: { id: 'recent', placeholder: neutralImagePlaceholder, alt: '最近のの表示領域' } },
-  { id: 'previous', english: 'previous', japanese: '前の / 以前の', phrase: 'the previous day', recallCue: '今のひとつ手前にあった、\nさっきのもの。', difficulty: 'intermediate', type: 'word', image: { id: 'previous', placeholder: neutralImagePlaceholder, alt: '前の / 以前のの表示領域' } },
-  { id: 'certain', english: 'certain', japanese: '確信して / 確かな', phrase: 'I\'m not certain', recallCue: '間違いないと、\n胸を張って言える感じ。', difficulty: 'intermediate', type: 'word', image: { id: 'certain', placeholder: neutralImagePlaceholder, alt: '確信して / 確かなの表示領域' } },
-  { id: 'obvious', english: 'obvious', japanese: '明らかな', phrase: 'an obvious mistake', recallCue: '説明されなくても、\n見ればすぐ分かる。', difficulty: 'intermediate', type: 'word', image: { id: 'obvious', placeholder: neutralImagePlaceholder, alt: '明らかなの表示領域' } },
-  { id: 'efficient', english: 'efficient', japanese: '効率的な', phrase: 'an efficient way to work', recallCue: 'むだな手間をかけずに、\nさっと片づく感じ。', difficulty: 'intermediate', type: 'word', image: { id: 'efficient', placeholder: neutralImagePlaceholder, alt: '効率的なの表示領域' } },
-  { id: 'convenient', english: 'convenient', japanese: '便利な / 都合がいい', phrase: 'a convenient place', recallCue: '手間がかからず、\n自分にとって使い勝手がいい。', difficulty: 'intermediate', type: 'word', image: { id: 'convenient', placeholder: neutralImagePlaceholder, alt: '便利な / 都合がいいの表示領域' } },
-  { id: 'flexible', english: 'flexible', japanese: '柔軟な', phrase: 'flexible working hours', recallCue: '状況に合わせて、\n形を変えられる感じ。', difficulty: 'intermediate', type: 'word', image: { id: 'flexible', placeholder: neutralImagePlaceholder, alt: '柔軟なの表示領域' } },
-  { id: 'accurate', english: 'accurate', japanese: '正確な', phrase: 'accurate information', recallCue: 'ずれや間違いがなく、\nぴたりと合っている。', difficulty: 'intermediate', type: 'word', image: { id: 'accurate', placeholder: neutralImagePlaceholder, alt: '正確なの表示領域' } },
-  { id: 'essential', english: 'essential', japanese: '不可欠な', phrase: 'essential for life', recallCue: 'これを抜いたら\n成り立たない、核の部分。', difficulty: 'intermediate', type: 'word', image: { id: 'essential', placeholder: neutralImagePlaceholder, alt: '不可欠なの表示領域' } },
-  { id: 'appropriate', english: 'appropriate', japanese: '適切な', phrase: 'appropriate clothes', recallCue: 'その場や相手に\nぴったり合っている。', difficulty: 'intermediate', type: 'word', image: { id: 'appropriate', placeholder: neutralImagePlaceholder, alt: '適切なの表示領域' } },
-  { id: 'temporary', english: 'temporary', japanese: '一時的な', phrase: 'a temporary job', recallCue: '今だけで、\nいずれ終わることが前提。', difficulty: 'intermediate', type: 'word', image: { id: 'temporary', placeholder: neutralImagePlaceholder, alt: '一時的なの表示領域' } },
-  { id: 'independent', english: 'independent', japanese: '自立した / 独立した', phrase: 'live an independent life', recallCue: '誰かに頼らず、\n自分の力でやっていく。', difficulty: 'intermediate', type: 'word', image: { id: 'independent', placeholder: neutralImagePlaceholder, alt: '自立した / 独立したの表示領域' } },
-  { id: 'regular', english: 'regular', japanese: '定期的な / いつもの', phrase: 'regular exercise', recallCue: '決まった間隔で、\nくり返し続いている。', difficulty: 'intermediate', type: 'word', image: { id: 'regular', placeholder: neutralImagePlaceholder, alt: '定期的な / いつものの表示領域' } },
-  { id: 'aware', english: 'aware', japanese: '気づいている', phrase: 'aware of the risk', recallCue: 'そのことが、\nちゃんと頭に入っている。', difficulty: 'intermediate', type: 'word', image: { id: 'aware', placeholder: neutralImagePlaceholder, alt: '気づいているの表示領域' } },
-  { id: 'confident', english: 'confident', japanese: '自信がある', phrase: 'feel confident', recallCue: '「きっと大丈夫」と\n落ち着いていられる感じ。', difficulty: 'intermediate', type: 'word', image: { id: 'confident', placeholder: neutralImagePlaceholder, alt: '自信があるの表示領域' } },
-  // やや難しい（見たことはあるが即座に意味が出にくい語）
-  { id: 'inevitable', english: 'inevitable', japanese: '避けられない', phrase: 'an inevitable result', recallCue: 'どう手を打っても、\nいずれそうなってしまう。', difficulty: 'advanced', type: 'word', image: { id: 'inevitable', placeholder: neutralImagePlaceholder, alt: '避けられないの表示領域' } },
-  { id: 'significant', english: 'significant', japanese: '重要な / 大きな意味を持つ', phrase: 'a significant change', recallCue: '結果を左右するくらい、\n無視できない大きさがある。', difficulty: 'advanced', type: 'word', image: { id: 'significant', placeholder: neutralImagePlaceholder, alt: '重要な / 大きな意味を持つの表示領域' } },
-  { id: 'reluctant', english: 'reluctant', japanese: '気が進まない', phrase: 'reluctant to leave', recallCue: 'やった方がいいとは分かっているけれど、\n乗り気になれない感じ。', difficulty: 'advanced', type: 'word', image: { id: 'reluctant', placeholder: neutralImagePlaceholder, alt: '気が進まないの表示領域' } },
-  { id: 'ambiguous', english: 'ambiguous', japanese: 'あいまいな', phrase: 'an ambiguous answer', recallCue: 'どちらの意味にも取れて、\nはっきりしない。', difficulty: 'advanced', type: 'word', image: { id: 'ambiguous', placeholder: neutralImagePlaceholder, alt: 'あいまいなの表示領域' } },
-  { id: 'substantial', english: 'substantial', japanese: 'かなりの / 相当な', phrase: 'a substantial amount', recallCue: 'ちょっとどころではない、\nしっかりした量や大きさ。', difficulty: 'advanced', type: 'word', image: { id: 'substantial', placeholder: neutralImagePlaceholder, alt: 'かなりの / 相当なの表示領域' } },
-  { id: 'consecutive', english: 'consecutive', japanese: '連続した', phrase: 'three consecutive days', recallCue: '途切れずに、\n続けざまに起きている。', difficulty: 'advanced', type: 'word', image: { id: 'consecutive', placeholder: neutralImagePlaceholder, alt: '連続したの表示領域' } },
-  { id: 'deteriorate', english: 'deteriorate', japanese: '悪化する', phrase: 'deteriorate over time', recallCue: '時間とともに、\nじわじわと悪くなっていく。', difficulty: 'advanced', type: 'word', image: { id: 'deteriorate', placeholder: neutralImagePlaceholder, alt: '悪化するの表示領域' } },
-  { id: 'accommodate', english: 'accommodate', japanese: '収容する / 対応する', phrase: 'accommodate many guests', recallCue: '相手や人数を\n受け入れられるよう、場を整える。', difficulty: 'advanced', type: 'word', image: { id: 'accommodate', placeholder: neutralImagePlaceholder, alt: '収容する / 対応するの表示領域' } },
-  { id: 'compromise', english: 'compromise', japanese: '妥協 / 歩み寄り', phrase: 'reach a compromise', recallCue: 'お互いに少しずつ譲って、\n真ん中で手を打つ。', difficulty: 'advanced', type: 'word', image: { id: 'compromise', placeholder: neutralImagePlaceholder, alt: '妥協 / 歩み寄りの表示領域' } },
-  { id: 'anticipate', english: 'anticipate', japanese: '予想する / 見越す', phrase: 'anticipate problems', recallCue: '起きる前に先を読んで、\n備えておく感じ。', difficulty: 'advanced', type: 'word', image: { id: 'anticipate', placeholder: neutralImagePlaceholder, alt: '予想する / 見越すの表示領域' } },
-  { id: 'emphasize', english: 'emphasize', japanese: '強調する', phrase: 'emphasize the main point', recallCue: 'ここが大事だと、\n声を強めて伝える。', difficulty: 'advanced', type: 'word', image: { id: 'emphasize', placeholder: neutralImagePlaceholder, alt: '強調するの表示領域' } },
-  { id: 'eliminate', english: 'eliminate', japanese: '取り除く / なくす', phrase: 'eliminate the risk', recallCue: '余計なものを、\n根こそぎ外してしまう。', difficulty: 'advanced', type: 'word', image: { id: 'eliminate', placeholder: neutralImagePlaceholder, alt: '取り除く / なくすの表示領域' } },
-  { id: 'contradict', english: 'contradict', japanese: '矛盾する / 反論する', phrase: 'contradict each other', recallCue: 'さっき言ったことと\n今の話が食い違う。', difficulty: 'advanced', type: 'word', image: { id: 'contradict', placeholder: neutralImagePlaceholder, alt: '矛盾する / 反論するの表示領域' } },
-  { id: 'hesitate', english: 'hesitate', japanese: 'ためらう', phrase: 'don\'t hesitate to ask', recallCue: 'やるかどうか迷って、\n一瞬手が止まる。', difficulty: 'advanced', type: 'word', image: { id: 'hesitate', placeholder: neutralImagePlaceholder, alt: 'ためらうの表示領域' } },
-  { id: 'persuade', english: 'persuade', japanese: '説得する', phrase: 'persuade my parents', recallCue: '相手が「それなら」と\nうなずくまで話す。', difficulty: 'advanced', type: 'word', image: { id: 'persuade', placeholder: neutralImagePlaceholder, alt: '説得するの表示領域' } },
-  { id: 'undermine', english: 'undermine', japanese: '損なう / 弱める', phrase: 'undermine trust', recallCue: '土台を少しずつ削って、\nじわじわ弱らせる。', difficulty: 'advanced', type: 'word', image: { id: 'undermine', placeholder: neutralImagePlaceholder, alt: '損なう / 弱めるの表示領域' } },
-  { id: 'sophisticated', english: 'sophisticated', japanese: '洗練された / 高度な', phrase: 'a sophisticated design', recallCue: '細かいところまで考えられた、\n垢抜けた感じ。', difficulty: 'advanced', type: 'word', image: { id: 'sophisticated', placeholder: neutralImagePlaceholder, alt: '洗練された / 高度なの表示領域' } },
-  { id: 'comprehensive', english: 'comprehensive', japanese: '包括的な', phrase: 'a comprehensive guide', recallCue: '抜けがないように、\n全体をまるごと押さえている。', difficulty: 'advanced', type: 'word', image: { id: 'comprehensive', placeholder: neutralImagePlaceholder, alt: '包括的なの表示領域' } },
-  { id: 'arbitrary', english: 'arbitrary', japanese: '恣意的な / 任意の', phrase: 'an arbitrary decision', recallCue: '筋の通った理由がなく、\nその場の気分で決めた感じ。', difficulty: 'advanced', type: 'word', image: { id: 'arbitrary', placeholder: neutralImagePlaceholder, alt: '恣意的な / 任意のの表示領域' } },
-  { id: 'plausible', english: 'plausible', japanese: 'もっともらしい', phrase: 'a plausible explanation', recallCue: '本当かは分からないけれど、\nありえそうに聞こえる。', difficulty: 'advanced', type: 'word', image: { id: 'plausible', placeholder: neutralImagePlaceholder, alt: 'もっともらしいの表示領域' } },
-  { id: 'tentative', english: 'tentative', japanese: '仮の / 暫定的な', phrase: 'a tentative plan', recallCue: 'ひとまずこうしておく、\nまだ決まりきっていない。', difficulty: 'advanced', type: 'word', image: { id: 'tentative', placeholder: neutralImagePlaceholder, alt: '仮の / 暫定的なの表示領域' } },
-  { id: 'redundant', english: 'redundant', japanese: '余分な / 重複した', phrase: 'remove redundant words', recallCue: 'すでにあるのに、\nもう一つ重ねている感じ。', difficulty: 'advanced', type: 'word', image: { id: 'redundant', placeholder: neutralImagePlaceholder, alt: '余分な / 重複したの表示領域' } },
-  { id: 'consensus', english: 'consensus', japanese: '合意 / 総意', phrase: 'build a consensus', recallCue: '話し合いの末に、\nみんなが「それで行こう」となる。', difficulty: 'advanced', type: 'word', image: { id: 'consensus', placeholder: neutralImagePlaceholder, alt: '合意 / 総意の表示領域' } },
-  { id: 'dilemma', english: 'dilemma', japanese: '板ばさみ / ジレンマ', phrase: 'face a dilemma', recallCue: 'どちらを選んでも、\n何かを失ってしまう。', difficulty: 'advanced', type: 'word', image: { id: 'dilemma', placeholder: neutralImagePlaceholder, alt: '板ばさみ / ジレンマの表示領域' } },
-  { id: 'incentive', english: 'incentive', japanese: '動機づけ / 報奨', phrase: 'a strong incentive', recallCue: '「それならやろう」と\n思わせるごほうび。', difficulty: 'advanced', type: 'word', image: { id: 'incentive', placeholder: neutralImagePlaceholder, alt: '動機づけ / 報奨の表示領域' } },
-  { id: 'perspective', english: 'perspective', japanese: '視点 / 見方', phrase: 'from a different perspective', recallCue: '立つ場所を変えると、\n同じものが違って見える。', difficulty: 'advanced', type: 'word', image: { id: 'perspective', placeholder: neutralImagePlaceholder, alt: '視点 / 見方の表示領域' } },
-  { id: 'implication', english: 'implication', japanese: '含意 / 影響', phrase: 'serious implications', recallCue: '表に出ていないけれど、\nそこから読み取れること。', difficulty: 'advanced', type: 'word', image: { id: 'implication', placeholder: neutralImagePlaceholder, alt: '含意 / 影響の表示領域' } },
-  { id: 'momentum', english: 'momentum', japanese: '勢い', phrase: 'gain momentum', recallCue: '一度動き出すと、\n止まらずに進んでいく力。', difficulty: 'advanced', type: 'word', image: { id: 'momentum', placeholder: neutralImagePlaceholder, alt: '勢いの表示領域' } },
-  { id: 'threshold', english: 'threshold', japanese: '境目 / しきい値', phrase: 'above the threshold', recallCue: 'ここを越えると\n状態が切り替わる境い目。', difficulty: 'advanced', type: 'word', image: { id: 'threshold', placeholder: neutralImagePlaceholder, alt: '境目 / しきい値の表示領域' } },
-  { id: 'transparency', english: 'transparency', japanese: '透明性', phrase: 'more transparency in government', recallCue: '中で何が起きているか、\n外からも見えている状態。', difficulty: 'advanced', type: 'word', image: { id: 'transparency', placeholder: neutralImagePlaceholder, alt: '透明性の表示領域' } },
-  // phrase / chunk / phrasal verb
-  { id: 'little-by-little', english: 'little by little', japanese: '少しずつ', phrase: 'improve little by little', recallCue: '一気にではなく、\n一歩ずつ積み重ねていく感じ。', difficulty: 'basic', type: 'phrase', image: { id: 'little-by-little', placeholder: neutralImagePlaceholder, alt: '少しずつの表示領域' } },
-  { id: 'in-terms-of', english: 'in terms of', japanese: '～の点で', phrase: 'in terms of cost', recallCue: 'いろいろな面がある中で、\nこの物差しで見ると。', difficulty: 'intermediate', type: 'phrase', image: { id: 'in-terms-of', placeholder: neutralImagePlaceholder, alt: '～の点での表示領域' } },
-  { id: 'as-a-result', english: 'as a result', japanese: 'その結果', phrase: 'as a result of the rain', recallCue: 'それまでの出来事を受けて、\nこうなった、とつなぐ。', difficulty: 'intermediate', type: 'phrase', image: { id: 'as-a-result', placeholder: neutralImagePlaceholder, alt: 'その結果の表示領域' } },
-  { id: 'at-least', english: 'at least', japanese: '少なくとも', phrase: 'at least once a week', recallCue: 'どんなに少なく見積もっても、\nこれだけはある。', difficulty: 'basic', type: 'phrase', image: { id: 'at-least', placeholder: neutralImagePlaceholder, alt: '少なくともの表示領域' } },
-  { id: 'for-example', english: 'for example', japanese: '例えば', phrase: 'for example, green tea', recallCue: '分かりにくい話に、\n具体的な一つを添える。', difficulty: 'basic', type: 'phrase', image: { id: 'for-example', placeholder: neutralImagePlaceholder, alt: '例えばの表示領域' } },
-  { id: 'in-advance', english: 'in advance', japanese: '前もって', phrase: 'book a table in advance', recallCue: 'その時が来る前に、\n先に済ませておく。', difficulty: 'intermediate', type: 'phrase', image: { id: 'in-advance', placeholder: neutralImagePlaceholder, alt: '前もっての表示領域' } },
-  { id: 'make-sure', english: 'make sure', japanese: '確かめる / 必ず～する', phrase: 'make sure the door is locked', recallCue: 'あとで困らないように、\nちゃんと確認しておく。', difficulty: 'basic', type: 'phrase', image: { id: 'make-sure', placeholder: neutralImagePlaceholder, alt: '確かめる / 必ず～するの表示領域' } },
-  { id: 'on-purpose', english: 'on purpose', japanese: 'わざと', phrase: 'break it on purpose', recallCue: 'うっかりではなく、\n分かっていてあえてする。', difficulty: 'intermediate', type: 'phrase', image: { id: 'on-purpose', placeholder: neutralImagePlaceholder, alt: 'わざとの表示領域' } },
-  { id: 'by-the-way', english: 'by the way', japanese: 'ところで', phrase: 'oh, by the way', recallCue: '話の流れを切って、\n別の話題を差しはさむ。', difficulty: 'basic', type: 'phrase', image: { id: 'by-the-way', placeholder: neutralImagePlaceholder, alt: 'ところでの表示領域' } },
-  { id: 'in-the-long-run', english: 'in the long run', japanese: '長い目で見れば', phrase: 'pays off in the long run', recallCue: '目の前の損得ではなく、\nずっと先まで見通すと。', difficulty: 'advanced', type: 'phrase', image: { id: 'in-the-long-run', placeholder: neutralImagePlaceholder, alt: '長い目で見ればの表示領域' } },
-  { id: 'come-up-with', english: 'come up with', japanese: '（案を）思いつく', phrase: 'come up with an idea', recallCue: '考えをめぐらせた末に、\n新しい案がぽんと浮かぶ。', difficulty: 'intermediate', type: 'phrasal-verb', image: { id: 'come-up-with', placeholder: neutralImagePlaceholder, alt: '（案を）思いつくの表示領域' } },
-  { id: 'deal-with', english: 'deal with', japanese: '対処する / 扱う', phrase: 'deal with the problem', recallCue: '目の前の厄介ごとに、\n手をつけて片づける。', difficulty: 'intermediate', type: 'phrasal-verb', image: { id: 'deal-with', placeholder: neutralImagePlaceholder, alt: '対処する / 扱うの表示領域' } },
-  { id: 'take-care-of', english: 'take care of', japanese: '世話をする / 引き受ける', phrase: 'take care of the baby', recallCue: '弱いものや大事なものを、\n気にかけて守る。', difficulty: 'basic', type: 'phrasal-verb', image: { id: 'take-care-of', placeholder: neutralImagePlaceholder, alt: '世話をする / 引き受けるの表示領域' } },
-  { id: 'look-forward-to', english: 'look forward to', japanese: '楽しみにする', phrase: 'look forward to the weekend', recallCue: 'まだ先のことを思い浮かべて、\nわくわくしながら待つ。', difficulty: 'basic', type: 'phrasal-verb', image: { id: 'look-forward-to', placeholder: neutralImagePlaceholder, alt: '楽しみにするの表示領域' } },
-  { id: 'give-up', english: 'give up', japanese: 'あきらめる / やめる', phrase: 'never give up', recallCue: '続けるのをやめて、\n手を離してしまう。', difficulty: 'basic', type: 'phrasal-verb', image: { id: 'give-up', placeholder: neutralImagePlaceholder, alt: 'あきらめる / やめるの表示領域' } },
-  { id: 'figure-out', english: 'figure out', japanese: '理解する / 解き明かす', phrase: 'figure out the answer', recallCue: 'あれこれ考えて、\nやっと仕組みが分かる。', difficulty: 'intermediate', type: 'phrasal-verb', image: { id: 'figure-out', placeholder: neutralImagePlaceholder, alt: '理解する / 解き明かすの表示領域' } },
-  { id: 'put-off', english: 'put off', japanese: '延期する / 先延ばしにする', phrase: 'put off the meeting', recallCue: '今やるはずのことを、\nあとへ回してしまう。', difficulty: 'intermediate', type: 'phrasal-verb', image: { id: 'put-off', placeholder: neutralImagePlaceholder, alt: '延期する / 先延ばしにするの表示領域' } },
-  { id: 'run-out-of', english: 'run out of', japanese: '～を切らす / 使い果たす', phrase: 'run out of time', recallCue: '使っているうちに、\n手元から無くなってしまう。', difficulty: 'intermediate', type: 'phrasal-verb', image: { id: 'run-out-of', placeholder: neutralImagePlaceholder, alt: '～を切らす / 使い果たすの表示領域' } },
-  { id: 'turn-down', english: 'turn down', japanese: '断る / （音量を）下げる', phrase: 'turn down the offer', recallCue: 'せっかくの申し出に、\n首を横に振る。', difficulty: 'intermediate', type: 'phrasal-verb', image: { id: 'turn-down', placeholder: neutralImagePlaceholder, alt: '断る / （音量を）下げるの表示領域' } },
-  { id: 'get-along-with', english: 'get along with', japanese: '仲良くやっていく', phrase: 'get along with coworkers', recallCue: 'ぶつからずに、\nうまく付き合っていける。', difficulty: 'intermediate', type: 'phrasal-verb', image: { id: 'get-along-with', placeholder: neutralImagePlaceholder, alt: '仲良くやっていくの表示領域' } },
-]
+// english から id を作る（小文字、空白はハイフン）。
+export const toWordId = (english: string) => english.toLowerCase().replaceAll(' ', '-')
+
+const toWord = (rank: WordRank, [english, japanese, phrase, extras = {}]: VocabularyEntry): Word => {
+  const id = toWordId(english)
+  return {
+    id,
+    english,
+    japanese,
+    phrase,
+    ...(extras.recallCue === undefined ? {} : { recallCue: extras.recallCue }),
+    rank,
+    type: extras.type ?? (english.includes(' ') ? 'phrase' : 'word'),
+    image: { id, placeholder: extras.placeholder ?? neutralImagePlaceholder, alt: `${japanese}の表示領域` },
+  }
+}
+
+const entriesByRank: Record<WordRank, VocabularyEntry[]> = {
+  'daily-basic': dailyBasicEntries,
+  'daily-advanced': dailyAdvancedEntries,
+  'business-basic': businessBasicEntries,
+  'business-advanced': businessAdvancedEntries,
+}
+
+// 出題する語彙。データの並びはランク順（選出はランダムなので、並び順そのものは学習に影響しない）。
+export const words: Word[] = wordRanks.flatMap((rank) => entriesByRank[rank].map((entry) => toWord(rank, entry)))
+
+// 中学レベルとして出題から外した語の id（Task 018）。保存済みの学習履歴・回答はこの id のまま残す。
+export const retiredWordIds: string[] = retiredEntries.map(([english]) => toWordId(english))
+
+// 語ごとのランクの順番（0 が最も易しい）。未回答の語を導入する順番に使う。
+export const wordRankOrder: ReadonlyMap<string, number> = new Map(
+  words.map((word) => [word.id, wordRanks.indexOf(word.rank)]),
+)
