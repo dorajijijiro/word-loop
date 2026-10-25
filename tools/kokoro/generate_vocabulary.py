@@ -27,6 +27,8 @@ ROOT = preview.ROOT
 PRONUNCIATIONS_PATH = ROOT / 'src' / 'data' / 'vocabularyAudio' / 'pronunciations.json'
 OUTPUT_DIR = ROOT / 'public' / 'audio' / 'kokoro-vocabulary'
 MANIFEST_PATH = OUTPUT_DIR / 'manifest.json'
+# Task 021: 通常の遠征が読む軽い一覧（wordId → 音声ハッシュの先頭8文字）。詳細な manifest.json を読まずに再生できるようにする
+INDEX_PATH = ROOT / 'src' / 'data' / 'vocabularyAudio' / 'audio-index.json'
 LIST_SCRIPT = ROOT / 'tools' / 'kokoro' / 'list-vocabulary.ts'
 
 # Task 019 で利用条件を確認し、試聴したモデルのリビジョン（manifest.json の model.revision）
@@ -133,6 +135,10 @@ def analyze(path: pathlib.Path, phonemes: str) -> tuple[dict, list[str]]:
     return {'durationMs': duration_ms, 'checks': checks}, warnings
 
 
+def now() -> str:
+    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds')
+
+
 def load_manifest() -> dict:
     if MANIFEST_PATH.exists():
         with MANIFEST_PATH.open(encoding='utf-8') as file:
@@ -140,7 +146,7 @@ def load_manifest() -> dict:
     return {'files': {}, 'unresolved': []}
 
 
-def write_manifest(conf: dict, files: dict[str, dict], unresolved: list[dict], jobs: list[dict]) -> None:
+def write_manifest(conf: dict, files: dict[str, dict], unresolved: list[dict], jobs: list[dict], generated_at: str) -> None:
     ordered = {}
     for job in jobs:
         entry = files.get(job['path'])
@@ -149,7 +155,7 @@ def write_manifest(conf: dict, files: dict[str, dict], unresolved: list[dict], j
     total = sum(entry['bytes'] for entry in ordered.values())
     header = {
         'description': 'Task 020: 全語彙の Kokoro 音声の一覧（tools/kokoro/generate_vocabulary.py が生成。手で編集しない）',
-        'generatedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds'),
+        'generatedAt': generated_at,
         'model': {'repoId': preview.REPO_ID, 'revision': conf['revision'], 'file': preview.MODEL_FILE, 'license': 'Apache-2.0'},
         'engine': {'kokoro': conf['kokoro'], 'misaki': conf['misaki'], 'espeakFallback': False},
         'voice': {'id': conf['voice'], 'language': 'en-US'},
@@ -174,6 +180,19 @@ def write_manifest(conf: dict, files: dict[str, dict], unresolved: list[dict], j
     tmp = MANIFEST_PATH.with_suffix('.json.tmp')
     tmp.write_text('\n'.join(lines) + '\n', encoding='utf-8')
     tmp.replace(MANIFEST_PATH)
+    write_index(ordered)
+
+
+def write_index(ordered: dict[str, dict]) -> None:
+    """遠征用の一覧。比較用の別の読み（key あり）は含めない。ハッシュはファイルを作り直したときの再読み込み（キャッシュ回避）に使う。"""
+    index = {
+        'description': 'Task 021: 通常の遠征で再生する Kokoro 音声の一覧（tools/kokoro/generate_vocabulary.py が生成。手で編集しない）。キーは wordId、値は音声ファイルの SHA-256 の先頭8文字。ファイルは public/audio/kokoro-vocabulary/{wordId}.mp3',
+        'files': {entry['wordId']: entry['sha256'][:8] for entry in ordered.values() if 'key' not in entry},
+    }
+    lines = ['{', f"  \"description\": {json.dumps(index['description'], ensure_ascii=False)},", '  "files": {']
+    lines.append(',\n'.join(f'    {json.dumps(word_id)}: {json.dumps(version)}' for word_id, version in index['files'].items()))
+    lines += ['  }', '}']
+    INDEX_PATH.write_text('\n'.join(lines) + '\n', encoding='utf-8')
 
 
 def reusable(entry: dict | None, job: dict, conf: dict) -> bool:
@@ -195,6 +214,8 @@ def run(revision: str, only: set[str], check_only: bool) -> None:
         raise SystemExit(f'--only に出題しない語があります: {sorted(unknown_only)}')
 
     previous = load_manifest()
+    # 新しく生成した音声がなければ、生成日時は前回のまま残す
+    generated_at = previous.get('generatedAt') or now()
     files: dict[str, dict] = dict(previous.get('files', {}))
     g2p = preview.make_g2p()
     conf = settings(revision)
@@ -262,16 +283,17 @@ def run(revision: str, only: set[str], check_only: bool) -> None:
                 'warnings': warnings,
             }
             done += 1
+            generated_at = now()
             print(f"[{index}/{len(jobs)}] {job['path']:<45} {len(data):>6} bytes  {phonemes}{'  ⚠ ' + ' / '.join(warnings) if warnings else ''}", flush=True)
             if done % SAVE_EVERY == 0:
-                write_manifest(conf, files, unresolved, jobs)
+                write_manifest(conf, files, unresolved, jobs, generated_at)
     finally:
         expected_paths = {job['path'] for job in jobs}
         for path in list(files):
             if path not in expected_paths:  # 語彙から外れた・指定を外した音声
                 files.pop(path)
                 (OUTPUT_DIR / path).unlink(missing_ok=True)
-        write_manifest(conf, files, unresolved, jobs)
+        write_manifest(conf, files, unresolved, jobs, generated_at)
     total = sum(entry['bytes'] for entry in files.values())
     warned = [path for path, entry in files.items() if entry['warnings']]
     print(f'生成 {done} / 再利用 {reused} / 未解決 {len(unresolved)} / 警告 {len(warned)} / {len(files)} files, {total} bytes -> {OUTPUT_DIR}')

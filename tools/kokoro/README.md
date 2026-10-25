@@ -58,6 +58,7 @@ npm test
 ```
 
 - 対象の語彙は `tools/kokoro/list-vocabulary.ts`（Node）で `src/data/words.ts` から取得します。ファイル名は wordId（`{wordId}.mp3`）です。
+- 同時に、通常の遠征が読む軽い一覧 `src/data/vocabularyAudio/audio-index.json`（wordId → 音声ハッシュの先頭8文字。Task 021）も書き出します。音声を作り直したら、この一覧も一緒にコミットします（`npm test` で manifest との一致を確認）。
 - 発音を直すときは `src/data/vocabularyAudio/pronunciations.json` に `[英語](/発音記号/)` 形式の `input` を書き、上の `--only` で作り直します。表示用の英語（語彙データ）は変えません。
   入力が変わった語は、`--only` を付けなくても次の実行で自動的に作り直されます（モデル・声・速度・入力・ハッシュが一致する音声だけ再利用）。
 - 途中で止めても、20件ごとに `manifest.json` を書き出しているので、もう一度実行すれば残りから再開します。
