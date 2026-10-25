@@ -1,6 +1,6 @@
-# Kokoro 試聴音声の生成（Task 019・開発時専用）
+# Kokoro 音声の生成（Task 019・020・開発時専用）
 
-`public/audio/kokoro-preview/` の MP3 と `manifest.json` を作るための手順です。
+`public/audio/kokoro-preview/`（Task 019 の試作）と `public/audio/kokoro-vocabulary/`（Task 020 の全語彙）の MP3 と `manifest.json` を作るための手順です。
 アプリは生成済みのファイルを再生するだけで、Kokoro 本体・モデル・この Python 環境はブラウザへ配布しません。
 Web アプリの依存（`package.json`）とは分けています。モデルや生成環境は Git に入れません（`.gitignore` 済み）。
 
@@ -39,6 +39,31 @@ npm test
 - 辞書にない語を espeak-ng で推測させる機能（fallback）は外しています。辞書にない語があればエラーで止まります。
 - 生成した発音記号が `--phonemes-only` と食い違えば止まります。
 - 自動生成が成功しても、発音が正しいとは限りません。必ず試聴画面で聴いて確認します（`docs/tasks/019-kokoro-audio-preview.md`）。
+
+## 全語彙の音声（Task 020）
+
+出題する全語彙（引退した語を除く）の音声を `public/audio/kokoro-vocabulary/` に作ります。モデル・声・速度・形式は Task 019 と同じです（リビジョンは `generate_vocabulary.py` の `PINNED_REVISION` に固定）。
+
+```bash
+# 全語彙を生成する（CPU で約20分。既にある音声は条件が一致すれば再利用する）
+.venv-kokoro/bin/python -I tools/kokoro/generate_vocabulary.py
+
+# 生成せず、既存の音声が今の設定・発音指定と一致するかだけ調べる
+.venv-kokoro/bin/python -I tools/kokoro/generate_vocabulary.py --check
+
+# 指定した語だけ作り直す（誤読を直したとき）
+.venv-kokoro/bin/python -I tools/kokoro/generate_vocabulary.py --only estimate,permit
+
+npm test
+```
+
+- 対象の語彙は `tools/kokoro/list-vocabulary.ts`（Node）で `src/data/words.ts` から取得します。ファイル名は wordId（`{wordId}.mp3`）です。
+- 発音を直すときは `src/data/vocabularyAudio/pronunciations.json` に `[英語](/発音記号/)` 形式の `input` を書き、上の `--only` で作り直します。表示用の英語（語彙データ）は変えません。
+  入力が変わった語は、`--only` を付けなくても次の実行で自動的に作り直されます（モデル・声・速度・入力・ハッシュが一致する音声だけ再利用）。
+- 途中で止めても、20件ごとに `manifest.json` を書き出しているので、もう一度実行すれば残りから再開します。
+- 辞書にない語・生成に失敗した語は止めずに `manifest.json` の `unresolved` に残し、残りの生成を続けます。
+- 自動検査（形式・長さ・無音・音量・クリッピング・途中の長い無音）で気になった音声は `warnings` に記録され、試聴画面で「要確認」と表示されます。
+- 人が聴いた結果は `src/data/vocabularyAudio/reviews.json` に、聴いた音声の `sha256`（manifest.json の値）と一緒に記録します。音声を作り直すと「未試聴」に戻ります。
 
 ## クレジット
 

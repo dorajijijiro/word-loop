@@ -1,0 +1,407 @@
+{
+  "description": "Task 020: 全語彙の Kokoro 音声で使う発音指定。キーは語彙の wordId。表示用の英語（english）は変えず、Kokoro に渡す入力（input）だけを misaki の [語](/発音記号/) 形式で指定する。ここにない語は english をそのまま読ませる。tools/kokoro/generate_vocabulary.py とアプリの試聴画面が読む。",
+  "statuses": {
+    "fixed": "発音指定あり。表示する意味に合う読みを参照資料で確認して指定した（音は未試聴）",
+    "needs-decision": "要判断。1項目に読みの違う意味が混在する。主の音声は補助文の意味に合わせたが、確認済みではない。alternatives は比較用の別の読み"
+  },
+  "items": {
+    "increase": {
+      "status": "fixed",
+      "input": "[increase](/ɪnkɹˈis/)",
+      "sense": "動詞（増える / 増やす）",
+      "reason": "単語だけでは名詞の読み（ˈɪnkɹˌis、前に強勢）になる。訳はどちらも動詞なので、後ろに強勢の動詞の読みを指定",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT ɪnkɹˈis / NOUN ˈɪnkɹˌis",
+        "CMUdict: IH2 N K R IY1 S（動詞）, IH1 N K R IY2 S（名詞）"
+      ]
+    },
+    "associate": {
+      "status": "fixed",
+      "input": "[associate](/əsˈOsiˌAt/)",
+      "sense": "動詞（結びつけて考える）",
+      "reason": "単語だけでは名詞・形容詞の読み（語尾 -ət）になる。動詞の語尾 -eɪt を指定（Task 019 と同じ）",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT əsˈOsiət / VERB əsˈOsiˌAt",
+        "CMUdict: AH0 S OW1 S IY0 EY2 T ほか"
+      ]
+    },
+    "complement": {
+      "status": "fixed",
+      "input": "[complement](/kˈɑmpləmˌɛnt/)",
+      "sense": "動詞（補完する）",
+      "reason": "単語だけでは名詞の読み（語尾が弱い -mənt）になる。動詞の語尾 -ˌment を指定",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT kˈɑmpləmənt / VERB kˈɑmpləmˌɛnt"
+      ]
+    },
+    "deliberate": {
+      "status": "fixed",
+      "input": "[deliberate](/dəlˈɪbəɹət/)",
+      "sense": "形容詞（意図的な / 慎重な）",
+      "reason": "単語だけでは動詞の読み（語尾 -eɪt）になる。形容詞の語尾 -ət を指定（Task 019 と同じ）",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: ADJ dəlˈɪbəɹət / DEFAULT dəlˈɪbəɹˌAt",
+        "CMUdict: D IH0 L IH1 B ER0 AH0 T（形容詞）, D IH0 L IH1 B ER0 EY2 T（動詞）"
+      ]
+    },
+    "intimate": {
+      "status": "fixed",
+      "input": "[intimate](/ˈɪntəmət/)",
+      "sense": "形容詞（親密な）",
+      "reason": "単語だけでは動詞の読み（語尾 -eɪt）になる。形容詞の語尾 -ət を指定",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT ˈɪntəmət / VERB ˈɪntəmˌAt",
+        "CMUdict: IH1 N T AH0 M AH0 T（形容詞）, IH1 N T AH0 M EY2 T（動詞）"
+      ]
+    },
+    "supplement": {
+      "status": "fixed",
+      "input": "[supplement](/sˈʌpləmənt/)",
+      "sense": "名詞（補足 / サプリメント）",
+      "reason": "単語だけでは動詞の読み（語尾 -ˌment）になる。名詞の語尾が弱い -mənt を指定",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT sˈʌpləmənt / VERB sˈʌpləmˌɛnt",
+        "CMUdict: S AH1 P L AH0 M AH0 N T（名詞）, S AH2 P L AH0 M EH1 N T（動詞）"
+      ]
+    },
+    "transfer": {
+      "status": "fixed",
+      "input": "[transfer](/tɹænsfˈɜɹ/)",
+      "sense": "動詞（異動させる / 送金する）",
+      "reason": "単語だけでは名詞の読み（前に強勢 ˈtrænsfɚ）になる。訳はどちらも動詞なので、後ろに強勢の動詞の読みを指定（動詞でも前に強勢で読む人はいる）",
+      "sources": [
+        "CMUdict: T R AE0 N S F ER1（後ろに強勢）, T R AE1 N S F ER0（前に強勢）",
+        "名詞・動詞で強勢が移る英語の一般的な規則（record, permit と同じ型）"
+      ]
+    },
+    "progress": {
+      "status": "fixed",
+      "input": "[progress](/pɹˈɑɡɹəs/)",
+      "sense": "名詞（進捗 / 進歩）",
+      "reason": "単語だけでは動詞の読み（prəˈgres、後ろに強勢）になる。名詞の読みを指定",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT pɹˈɑɡɹəs / VERB pɹəɡɹˈɛs",
+        "CMUdict: P R AA1 G R EH2 S（名詞）, P R AH0 G R EH1 S（動詞）"
+      ]
+    },
+    "conglomerate": {
+      "status": "fixed",
+      "input": "[conglomerate](/kənɡlˈɑməɹət/)",
+      "sense": "名詞（複合企業）",
+      "reason": "単語だけでは動詞の読み（語尾 -eɪt）になる。名詞の語尾 -ət を指定",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT kənɡlˈɑməɹət / VERB kənɡlˈɑməɹˌAt"
+      ]
+    },
+    "overhead": {
+      "status": "fixed",
+      "input": "[overhead](/ˈOvəɹhˌɛd/)",
+      "sense": "名詞（間接費 / 経費）",
+      "reason": "単語だけでは副詞の読み（ˌoʊvərˈhed、後ろに強勢）になる。名詞の前に強勢の読みを指定",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT ˌOvəɹhˈɛd / NOUN ˈOvəɹhˌɛd"
+      ]
+    },
+    "headcount": {
+      "status": "fixed",
+      "input": "[headcount](/hˈɛdkˌWnt/)",
+      "sense": "名詞（人員数）",
+      "reason": "misaki の辞書にない語。推測では読ませず、CMUdict の読みを指定",
+      "sources": [
+        "CMUdict: HH EH1 D K AW2 N T"
+      ]
+    },
+    "breakeven": {
+      "status": "fixed",
+      "input": "[breakeven](/bɹˈAkˌivən/)",
+      "sense": "名詞（損益分岐点）",
+      "reason": "misaki の辞書にない語。推測では読ませず、CMUdict の読みを指定",
+      "sources": [
+        "CMUdict: B R EY1 K IY2 V AH0 N"
+      ]
+    },
+    "permit": {
+      "status": "needs-decision",
+      "input": "[permit](/pˈɜɹmɪt/)",
+      "sense": "名詞：許可証（補助文 a parking permit）",
+      "reason": "訳に動詞「許可する」（後ろに強勢）と名詞「許可証」（前に強勢）が混在",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT pˈɜɹmɪt / VERB pəɹmˈɪt",
+        "CMUdict: P ER0 M IH1 T, P ER1 M IH2 T"
+      ],
+      "alternatives": [
+        {
+          "key": "verb",
+          "label": "動詞：許可する",
+          "input": "[permit](/pəɹmˈɪt/)"
+        }
+      ]
+    },
+    "overall": {
+      "status": "needs-decision",
+      "input": "[overall](/ˈOvəɹˌɔl/)",
+      "sense": "形容詞：全体的な（補助文 the overall cost）",
+      "reason": "訳に形容詞「全体的な」（前に強勢）と副詞「全体として」（後ろに強勢）が混在",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT ˈOvəɹˌɔl / ADV ˌOvəɹˈɔl"
+      ],
+      "alternatives": [
+        {
+          "key": "adv",
+          "label": "副詞：全体として",
+          "input": "[overall](/ˌOvəɹˈɔl/)"
+        }
+      ]
+    },
+    "advocate": {
+      "status": "needs-decision",
+      "input": "[advocate](/ˈædvəkˌAt/)",
+      "sense": "動詞：主張する（補助文 advocate for change）",
+      "reason": "訳に動詞「主張する」（語尾 -eɪt）と名詞「支持者」（語尾 -ət）が混在",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT ˈædvəkət / VERB ˈædvəkˌAt",
+        "CMUdict: AE1 D V AH0 K AH0 T, AE1 D V AH0 K EY2 T"
+      ],
+      "alternatives": [
+        {
+          "key": "noun",
+          "label": "名詞：支持者",
+          "input": "[advocate](/ˈædvəkət/)"
+        }
+      ]
+    },
+    "conduct": {
+      "status": "needs-decision",
+      "input": "[conduct](/kəndˈʌkt/)",
+      "sense": "動詞：行う（補助文 conduct a survey）",
+      "reason": "訳に動詞「行う」（後ろに強勢）と名詞「行動」（前に強勢）が混在",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT kˈɑndˌʌkt / VERB kəndˈʌkt",
+        "CMUdict: K AA1 N D AH0 K T, K AA0 N D AH1 K T"
+      ],
+      "alternatives": [
+        {
+          "key": "noun",
+          "label": "名詞：行動",
+          "input": "[conduct](/kˈɑndˌʌkt/)"
+        }
+      ]
+    },
+    "elaborate": {
+      "status": "needs-decision",
+      "input": "[elaborate](/əlˈæbəɹət/)",
+      "sense": "形容詞：精巧な（補助文 an elaborate plan）",
+      "reason": "訳に形容詞「精巧な」（語尾 -ət）と動詞「詳しく述べる」（語尾 -eɪt）が混在",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: ADJ əlˈæbəɹət / DEFAULT əlˈæbəɹˌAt",
+        "CMUdict: IH0 L AE1 B R AH0 T, IH0 L AE1 B ER0 EY2 T"
+      ],
+      "alternatives": [
+        {
+          "key": "verb",
+          "label": "動詞：詳しく述べる",
+          "input": "[elaborate](/əlˈæbəɹˌAt/)"
+        }
+      ]
+    },
+    "rebel": {
+      "status": "needs-decision",
+      "input": "[rebel](/ɹəbˈɛl/)",
+      "sense": "動詞：反抗する（補助文 rebel against rules）",
+      "reason": "訳に動詞「反抗する」（後ろに強勢）と名詞「反逆者」（前に強勢）が混在。補助文の中でも misaki は名詞の読みにする",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT ɹˈɛbᵊl / VERB ɹəbˈɛl",
+        "CMUdict: R EH1 B AH0 L, R IH0 B EH1 L"
+      ],
+      "alternatives": [
+        {
+          "key": "noun",
+          "label": "名詞：反逆者",
+          "input": "[rebel](/ɹˈɛbᵊl/)"
+        }
+      ]
+    },
+    "resume": {
+      "status": "needs-decision",
+      "input": "[resume](/ɹˈɛzəmˌA/)",
+      "sense": "名詞：履歴書（補助文 send your resume）",
+      "reason": "訳に名詞「履歴書」（ˈrezəmeɪ）と動詞「再開する」（rɪˈzuːm）が混在。補助文の中でも misaki は動詞の読みにする（Task 019 で確認）",
+      "sources": [
+        "CMUdict: R EH1 Z AH0 M EY2（履歴書）, R IH0 Z UW1 M（再開する）"
+      ],
+      "alternatives": [
+        {
+          "key": "verb",
+          "label": "動詞：再開する",
+          "input": "[resume](/ɹəzˈum/)"
+        }
+      ]
+    },
+    "update": {
+      "status": "needs-decision",
+      "input": "[update](/ˈʌpdˌAt/)",
+      "sense": "名詞：最新情報（補助文 a quick update）",
+      "reason": "訳に名詞「最新情報」（前に強勢）と動詞「更新する」（後ろに強勢。前に強勢で読む人もいる）が混在",
+      "sources": [
+        "CMUdict: AH1 P D EY2 T, AH0 P D EY1 T"
+      ],
+      "alternatives": [
+        {
+          "key": "verb",
+          "label": "動詞：更新する",
+          "input": "[update](/ˌʌpdˈAt/)"
+        }
+      ]
+    },
+    "estimate": {
+      "status": "needs-decision",
+      "input": "[estimate](/ˈɛstəmət/)",
+      "sense": "名詞：見積もり（補助文 a rough estimate）",
+      "reason": "訳に名詞「見積もり」（語尾 -ət）と動詞「見積もる」（語尾 -eɪt）が混在",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT ˈɛstəmˌAt / NOUN ˈɛstəmət",
+        "CMUdict: EH1 S T AH0 M AH0 T, EH1 S T AH0 M EY2 T"
+      ],
+      "alternatives": [
+        {
+          "key": "verb",
+          "label": "動詞：見積もる",
+          "input": "[estimate](/ˈɛstəmˌAt/)"
+        }
+      ]
+    },
+    "decrease": {
+      "status": "needs-decision",
+      "input": "[decrease](/dˈikɹˌis/)",
+      "sense": "名詞：減少（補助文 a slight decrease）",
+      "reason": "訳に名詞「減少」（前に強勢）と動詞「減る」（後ろに強勢）が混在",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT dˈikɹˌis / VERB dəkɹˈis",
+        "CMUdict: D IY1 K R IY2 S, D IH0 K R IY1 S"
+      ],
+      "alternatives": [
+        {
+          "key": "verb",
+          "label": "動詞：減る",
+          "input": "[decrease](/dəkɹˈis/)"
+        }
+      ]
+    },
+    "delegate": {
+      "status": "needs-decision",
+      "input": "[delegate](/dˈɛləɡˌAt/)",
+      "sense": "動詞：任せる（補助文 delegate tasks）",
+      "reason": "訳に動詞「任せる」（語尾 -eɪt）と名詞「代表者」（語尾 -ət）が混在。補助文の中でも misaki は名詞の読みにする",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT dˈɛləɡət / VERB dˈɛləɡˌAt",
+        "CMUdict: D EH1 L AH0 G EY2 T, D EH1 L AH0 G AH0 T"
+      ],
+      "alternatives": [
+        {
+          "key": "noun",
+          "label": "名詞：代表者",
+          "input": "[delegate](/dˈɛləɡət/)"
+        }
+      ]
+    },
+    "refund": {
+      "status": "needs-decision",
+      "input": "[refund](/ɹˈifˌʌnd/)",
+      "sense": "名詞：返金（補助文 ask for a refund）",
+      "reason": "訳に名詞「返金」（前に強勢）と動詞「払い戻す」（後ろに強勢）が混在",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT ɹəfˈʌnd / NOUN ɹˈifˌʌnd",
+        "CMUdict: R IY1 F AH2 N D, R IH0 F AH1 N D"
+      ],
+      "alternatives": [
+        {
+          "key": "verb",
+          "label": "動詞：払い戻す",
+          "input": "[refund](/ɹəfˈʌnd/)"
+        }
+      ]
+    },
+    "affiliate": {
+      "status": "needs-decision",
+      "input": "[affiliate](/əfˈɪliət/)",
+      "sense": "名詞：関連会社（補助文 an affiliate company）",
+      "reason": "訳に名詞「関連会社」（語尾 -ət）と動詞「提携する」（語尾 -eɪt）が混在",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT əfˈɪliət / VERB əfˈɪliˌAt",
+        "CMUdict: AH0 F IH1 L IY0 AH0 T, AH0 F IH1 L IY0 EY2 T"
+      ],
+      "alternatives": [
+        {
+          "key": "verb",
+          "label": "動詞：提携する",
+          "input": "[affiliate](/əfˈɪliˌAt/)"
+        }
+      ]
+    },
+    "articulate": {
+      "status": "needs-decision",
+      "input": "[articulate](/ɑɹtˈɪkjəlˌAt/)",
+      "sense": "動詞：明確に述べる（補助文 articulate your ideas）",
+      "reason": "訳に動詞「明確に述べる」（語尾 -eɪt）と形容詞「明快な」（語尾 -ət）が混在",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT ɑɹtˈɪkjələt / VERB ɑɹtˈɪkjəlˌAt",
+        "CMUdict: AA0 R T IH1 K Y AH0 L EY2 T, AA0 R T IH1 K Y AH0 L AH0 T"
+      ],
+      "alternatives": [
+        {
+          "key": "adj",
+          "label": "形容詞：明快な",
+          "input": "[articulate](/ɑɹtˈɪkjələt/)"
+        }
+      ]
+    },
+    "aggregate": {
+      "status": "needs-decision",
+      "input": "[aggregate](/ˈæɡɹəɡət/)",
+      "sense": "形容詞：合計の（補助文 aggregate data）",
+      "reason": "訳に形容詞「合計の」（語尾 -ət）と動詞「集計する」（語尾 -eɪt）が混在",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT ˈæɡɹəɡət / VERB ˈæɡɹəɡˌAt"
+      ],
+      "alternatives": [
+        {
+          "key": "verb",
+          "label": "動詞：集計する",
+          "input": "[aggregate](/ˈæɡɹəɡˌAt/)"
+        }
+      ]
+    },
+    "overhaul": {
+      "status": "needs-decision",
+      "input": "[overhaul](/ˌOvəɹhˈɔl/)",
+      "sense": "動詞：全面的に見直す（補助文 overhaul the system）",
+      "reason": "訳に動詞「全面的に見直す」（後ろに強勢）と名詞「分解修理」（前に強勢）が混在",
+      "sources": [
+        "misaki us_gold.json（品詞別の読み）: DEFAULT ˌOvəɹhˈɔl / NOUN ˈOvəɹhˌɔl"
+      ],
+      "alternatives": [
+        {
+          "key": "noun",
+          "label": "名詞：分解修理",
+          "input": "[overhaul](/ˈOvəɹhˌɔl/)"
+        }
+      ]
+    },
+    "upgrade": {
+      "status": "needs-decision",
+      "input": "[upgrade](/ˈʌpɡɹˌAd/)",
+      "sense": "名詞：改良（補助文 a system upgrade）",
+      "reason": "訳に名詞「改良」（前に強勢）と動詞「格上げする」（後ろに強勢。前に強勢で読む人もいる）が混在",
+      "sources": [
+        "CMUdict: AH1 P G R EY1 D, AH0 P G R EY1 D"
+      ],
+      "alternatives": [
+        {
+          "key": "verb",
+          "label": "動詞：格上げする",
+          "input": "[upgrade](/ˌʌpɡɹˈAd/)"
+        }
+      ]
+    }
+  }
+}
