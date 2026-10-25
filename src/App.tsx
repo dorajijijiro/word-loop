@@ -73,6 +73,7 @@ import {
   type UnderstandingStatus,
   type UnderstandingTarget,
 } from './lib/understanding'
+import { getFocusTrapTarget } from './lib/focusTrap'
 import { nextRecallStep, startRecallStep, type RecallStep } from './lib/recall'
 import './App.css'
 
@@ -410,15 +411,18 @@ function App() {
     if (event.key !== 'Tab' || settingsPanelRef.current === null) {
       return
     }
-    const focusable = [...settingsPanelRef.current.querySelectorAll<HTMLElement>('button:not(:disabled), input')]
-    const first = focusable[0]
-    const last = focusable.at(-1)
-    if (event.shiftKey && document.activeElement === first) {
+    const focusable = [...settingsPanelRef.current.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)')]
+    // 開いた直後はパネル本体にフォーカスがあるので、Shift+Tab でも背後の「設定」ボタンへ抜けないよう中の最後へ移す。
+    const target = getFocusTrapTarget(
+      focusable.length,
+      focusable.indexOf(document.activeElement as HTMLElement),
+      event.shiftKey,
+    )
+    if (target !== null) {
       event.preventDefault()
-      last?.focus()
-    } else if (!event.shiftKey && document.activeElement === last) {
+      focusable[target].focus()
+    } else if (focusable.length === 0) {
       event.preventDefault()
-      first?.focus()
     }
   }
 
