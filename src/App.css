@@ -874,3 +874,15 @@
     transition: none;
   }
 }
+
+/* 拠点画面から試聴画面へのリンク（Task 019。目立たせない） */
+.preview-entry {
+  align-self: center;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.85rem;
+  min-height: 44px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

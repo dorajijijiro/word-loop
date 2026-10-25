@@ -1,0 +1,12 @@
+# Task 019: Kokoro 音声生成用（開発時だけ使う。Web アプリの package.json とは別に、隔離した Python 3.12 環境へ入れる）
+# 公式: https://github.com/hexgrad/kokoro / モデル: https://huggingface.co/hexgrad/Kokoro-82M
+kokoro==0.9.4
+misaki[en]==0.9.4
+soundfile==0.14.0
+# misaki が品詞判定に使う spaCy の英語モデル（MIT License, Explosion 公式配布）
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+# spaCy 3.8.16 / preshed 3.0.14 の組み合わせでは en_core_web_sm の読み込みが OverflowError になったため、動作した版に固定
+spacy==3.8.7
+preshed==3.0.9
+cymem==2.0.11
+murmurhash==1.0.12

@@ -662,6 +662,11 @@ function App() {
           <button type="button" className="primary-button" onClick={beginExpedition}>
             遠征を始める
           </button>
+
+          {/* Task 019: 音声の試聴画面（学習の記録には影響しない） */}
+          <a className="preview-entry" href="#audio-preview">
+            音声の試聴（Kokoro 試作）
+          </a>
         </section>
       )}
 

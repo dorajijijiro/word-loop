@@ -34,6 +34,7 @@
 - 遠征中は英語・日本語・絵を常に同時に表示する（英語を隠して思い出す Recall Encounter は現在無効。詳細は `docs/tasks/014-disable-recall-v1.md`）
 - 拠点画面 → 遠征（進行度だけの小さなHUD、new / growth / again の控えめなラベル。XP・Gold・Level は結果・拠点画面で表示）→ 遠征完了 → 帰還 → 次の遠征、の流れ
 - iPhone相当の画面幅でも使いやすい表示（ダークモード対応）
+- 拠点画面の「音声の試聴（Kokoro 試作）」から、約30項目について Kokoro で事前生成した音声と現在の読み上げを聴き比べられる（試作。学習の記録には影響しない。詳細は `docs/tasks/019-kokoro-audio-preview.md`）
 
 画面下部の「開発用」表示は動作確認のためのもので、最終的なUIではありません。
 
@@ -126,6 +127,12 @@ npm test
 - 外部教材の音声ファイルは使いません
 
 そのため、利用できる声や発音品質はOS・ブラウザに依存します。
+
+試作として、試聴画面だけで Kokoro（hexgrad/Kokoro-82M、Apache License 2.0）による事前生成音声を比較できるようにしています（Task 019）。
+
+- 音声は開発時に `tools/kokoro/` の手順で生成し、アプリは生成済みの MP3 を再生するだけです（Kokoro 本体・モデルはブラウザへ配布しません）
+- 生成音声のクレジット: Audio generated with Kokoro-82M by hexgrad (Apache License 2.0).
+- 通常の遠征の読み上げは、引き続きブラウザ標準の音声合成です
 
 ## 画像について
 

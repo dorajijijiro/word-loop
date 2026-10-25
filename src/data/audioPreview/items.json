@@ -1,0 +1,443 @@
+{
+  "description": "Task 019: Kokoro 試聴用の項目一覧。アプリの試聴画面と tools/kokoro/generate.py の両方が読む。学習用語彙には追加しない（wordId で語彙の項目を参照し、日本語訳・ランクは語彙側から表示する）。",
+  "items": [
+    {
+      "id": "content",
+      "wordId": "content",
+      "english": "content",
+      "sense": "名詞：内容（形容詞「満足して」は別の読み）",
+      "focus": "品詞で強勢が変わる",
+      "expected": {
+        "ipa": "ˈkɑːntent",
+        "cmudict": "K AA1 N T EH0 N T",
+        "note": "形容詞 content（満足した）は kənˈtent"
+      },
+      "kokoroInput": "content"
+    },
+    {
+      "id": "permit-verb",
+      "wordId": "permit",
+      "english": "permit",
+      "sense": "動詞：許可する",
+      "focus": "動詞は後ろに強勢",
+      "expected": {
+        "ipa": "pərˈmɪt",
+        "cmudict": "P ER0 M IH1 T"
+      },
+      "kokoroInput": "[permit](/pəɹmˈɪt/)",
+      "kokoroFix": "単語だけでは名詞の読み（pˈɜɹmɪt）になるため、動詞の発音を指定",
+      "sentence": {
+        "english": "The rules do not permit smoking inside.",
+        "japanese": "規則で屋内の喫煙は認められていない。",
+        "kokoroInput": "The rules do not permit smoking inside."
+      }
+    },
+    {
+      "id": "permit-noun",
+      "wordId": "permit",
+      "english": "permit",
+      "sense": "名詞：許可証",
+      "focus": "名詞は前に強勢",
+      "expected": {
+        "ipa": "ˈpɝːmɪt",
+        "cmudict": "P ER1 M IH2 T"
+      },
+      "kokoroInput": "permit",
+      "sentence": {
+        "english": "You need a permit to park here.",
+        "japanese": "ここに駐車するには許可証が必要です。",
+        "kokoroInput": "You need a permit to park here."
+      }
+    },
+    {
+      "id": "refuse",
+      "wordId": "refuse",
+      "english": "refuse",
+      "sense": "動詞：断る（名詞「ごみ」は ˈrefjuːs）",
+      "focus": "品詞で読みが変わる",
+      "expected": {
+        "ipa": "rɪˈfjuːz",
+        "cmudict": "R IH0 F Y UW1 Z"
+      },
+      "kokoroInput": "refuse"
+    },
+    {
+      "id": "moderate",
+      "wordId": "moderate",
+      "english": "moderate",
+      "sense": "形容詞：適度な（動詞「司会する」は -eɪt）",
+      "focus": "形容詞の語尾は弱い -ət",
+      "expected": {
+        "ipa": "ˈmɑːdərət",
+        "cmudict": "M AA1 D ER0 AH0 T"
+      },
+      "kokoroInput": "moderate"
+    },
+    {
+      "id": "vehicle",
+      "wordId": "vehicle",
+      "english": "vehicle",
+      "sense": null,
+      "focus": "h はほぼ発音しない",
+      "expected": {
+        "ipa": "ˈviːəkəl",
+        "cmudict": "V IY1 IH0 K AH0 L",
+        "note": "CMUdict には h を発音する読み（V IY1 HH IH0 K AH0 L）も載っている"
+      },
+      "kokoroInput": "vehicle"
+    },
+    {
+      "id": "come-up-with",
+      "wordId": "come-up-with",
+      "english": "come up with",
+      "sense": null,
+      "focus": "句動詞：up に強勢",
+      "expected": {
+        "ipa": "kʌm ˈʌp wɪð",
+        "cmudict": "K AH1 M / AH1 P / W IH1 DH"
+      },
+      "kokoroInput": "come up with"
+    },
+    {
+      "id": "in-a-row",
+      "wordId": "in-a-row",
+      "english": "in a row",
+      "sense": "熟語：連続で（row は「列」の roʊ。「口論」の raʊ ではない）",
+      "focus": "row の読み分け",
+      "expected": {
+        "ipa": "ɪn ə ˈroʊ",
+        "cmudict": "IH0 N / AH0 / R OW1"
+      },
+      "kokoroInput": "in a row",
+      "sentence": {
+        "english": "It rained for three days in a row.",
+        "japanese": "3日連続で雨が降った。",
+        "kokoroInput": "It rained for three days in a row."
+      }
+    },
+    {
+      "id": "conduct-verb",
+      "wordId": "conduct",
+      "english": "conduct",
+      "sense": "動詞：行う（補助文 conduct a survey の意味。名詞「行動」は ˈkɑːndʌkt）",
+      "focus": "動詞は後ろに強勢",
+      "expected": {
+        "ipa": "kənˈdʌkt",
+        "cmudict": "K AA0 N D AH1 K T"
+      },
+      "kokoroInput": "[conduct](/kəndˈʌkt/)",
+      "kokoroFix": "単語だけでは名詞の読み（kˈɑndˌʌkt）になるため、動詞の発音を指定"
+    },
+    {
+      "id": "deliberate",
+      "wordId": "deliberate",
+      "english": "deliberate",
+      "sense": "形容詞：意図的な（動詞「熟考する」は -eɪt）",
+      "focus": "形容詞の語尾は弱い -ət",
+      "expected": {
+        "ipa": "dɪˈlɪbərət",
+        "cmudict": "D IH0 L IH1 B ER0 AH0 T"
+      },
+      "kokoroInput": "[deliberate](/dəlˈɪbəɹət/)",
+      "kokoroFix": "単語だけでは動詞の読み（-ˌAt）になるため、形容詞の発音を指定"
+    },
+    {
+      "id": "associate",
+      "wordId": "associate",
+      "english": "associate",
+      "sense": "動詞：結びつけて考える（名詞「仲間」は -ət）",
+      "focus": "動詞の語尾は -eɪt",
+      "expected": {
+        "ipa": "əˈsoʊʃieɪt",
+        "cmudict": "AH0 S OW1 SH IY0 EY2 T",
+        "note": "-s- と -sh- の両方の読みが辞書にある"
+      },
+      "kokoroInput": "[associate](/əsˈOsiˌAt/)",
+      "kokoroFix": "単語だけでは名詞・形容詞の読み（-ət）になるため、動詞の発音を指定"
+    },
+    {
+      "id": "advocate-verb",
+      "wordId": "advocate",
+      "english": "advocate",
+      "sense": "動詞：主張する",
+      "focus": "動詞の語尾は -eɪt",
+      "expected": {
+        "ipa": "ˈædvəkeɪt",
+        "cmudict": "AE1 D V AH0 K EY2 T"
+      },
+      "kokoroInput": "advocate"
+    },
+    {
+      "id": "advocate-noun",
+      "wordId": "advocate",
+      "english": "advocate",
+      "sense": "名詞：支持者",
+      "focus": "名詞の語尾は弱い -ət",
+      "expected": {
+        "ipa": "ˈædvəkət",
+        "cmudict": "AE1 D V AH0 K AH0 T"
+      },
+      "kokoroInput": "[advocate](/ˈædvəkət/)",
+      "kokoroFix": "単語だけでは動詞の読み（-ˌAt）になるため、名詞の発音を指定"
+    },
+    {
+      "id": "chaos",
+      "wordId": "chaos",
+      "english": "chaos",
+      "sense": null,
+      "focus": "「カオス」ではなく ˈkeɪ-",
+      "expected": {
+        "ipa": "ˈkeɪɑːs",
+        "cmudict": "K EY1 AA0 S"
+      },
+      "kokoroInput": "chaos"
+    },
+    {
+      "id": "subtle",
+      "wordId": "subtle",
+      "english": "subtle",
+      "sense": null,
+      "focus": "b を発音しない",
+      "expected": {
+        "ipa": "ˈsʌtəl",
+        "cmudict": "S AH1 T AH0 L"
+      },
+      "kokoroInput": "subtle"
+    },
+    {
+      "id": "take-it-for-granted",
+      "wordId": "take-it-for-granted",
+      "english": "take it for granted",
+      "sense": null,
+      "focus": "長めの熟語のつながり",
+      "expected": {
+        "ipa": "teɪk ɪt fər ˈɡræntɪd",
+        "cmudict": "T EY1 K / IH0 T / F ER0 / G R AE1 N T IH0 D"
+      },
+      "kokoroInput": "take it for granted"
+    },
+    {
+      "id": "unprecedented",
+      "wordId": "unprecedented",
+      "english": "unprecedented",
+      "sense": null,
+      "focus": "長い語の強勢位置",
+      "expected": {
+        "ipa": "ʌnˈpresɪdentɪd",
+        "cmudict": "AH0 N P R EH1 S IH0 D EH2 N T IH0 D"
+      },
+      "kokoroInput": "unprecedented"
+    },
+    {
+      "id": "estimate-noun",
+      "wordId": "estimate",
+      "english": "estimate",
+      "sense": "名詞：見積もり",
+      "focus": "名詞の語尾は弱い -ət",
+      "expected": {
+        "ipa": "ˈestɪmət",
+        "cmudict": "EH1 S T AH0 M AH0 T"
+      },
+      "kokoroInput": "estimate",
+      "sentence": {
+        "english": "Can you give me a rough estimate?",
+        "japanese": "おおよその見積もりをもらえますか？",
+        "kokoroInput": "Can you give me a rough estimate?"
+      }
+    },
+    {
+      "id": "estimate-verb",
+      "wordId": "estimate",
+      "english": "estimate",
+      "sense": "動詞：見積もる",
+      "focus": "動詞の語尾は -eɪt",
+      "expected": {
+        "ipa": "ˈestɪmeɪt",
+        "cmudict": "EH1 S T AH0 M EY2 T"
+      },
+      "kokoroInput": "[estimate](/ˈɛstəmˌAt/)",
+      "kokoroFix": "単語だけでは名詞の読み（-ət）になるため、動詞の発音を指定",
+      "sentence": {
+        "english": "We estimate the cost at five thousand dollars.",
+        "japanese": "費用は5,000ドルと見積もっています。",
+        "kokoroInput": "We estimate the cost at five thousand dollars."
+      }
+    },
+    {
+      "id": "minutes",
+      "wordId": "minutes",
+      "english": "minutes",
+      "sense": "名詞：議事録（形容詞 minute「ごく小さい」は maɪˈnuːt）",
+      "focus": "議事録は「分」と同じ読み",
+      "expected": {
+        "ipa": "ˈmɪnɪts",
+        "cmudict": "M IH1 N AH0 T S"
+      },
+      "kokoroInput": "minutes"
+    },
+    {
+      "id": "colleague",
+      "wordId": "colleague",
+      "english": "colleague",
+      "sense": null,
+      "focus": "「カリーグ」に近い。前に強勢",
+      "expected": {
+        "ipa": "ˈkɑːliːɡ",
+        "cmudict": "K AA1 L IY0 G"
+      },
+      "kokoroInput": "colleague"
+    },
+    {
+      "id": "receipt",
+      "wordId": "receipt",
+      "english": "receipt",
+      "sense": null,
+      "focus": "p を発音しない",
+      "expected": {
+        "ipa": "rɪˈsiːt",
+        "cmudict": "R IH0 S IY1 T"
+      },
+      "kokoroInput": "receipt"
+    },
+    {
+      "id": "debt",
+      "wordId": "debt",
+      "english": "debt",
+      "sense": null,
+      "focus": "短い語。b を発音しない",
+      "expected": {
+        "ipa": "ˈdet",
+        "cmudict": "D EH1 T"
+      },
+      "kokoroInput": "debt"
+    },
+    {
+      "id": "resume-noun",
+      "wordId": "resume",
+      "english": "resume",
+      "sense": "名詞：履歴書（résumé）",
+      "focus": "履歴書は ˈrez- で始まる",
+      "expected": {
+        "ipa": "ˈrezəmeɪ",
+        "cmudict": "R EH1 Z AH0 M EY2",
+        "note": "rezəˈmeɪ と後ろに強勢を置く読みもある"
+      },
+      "kokoroInput": "[resume](/ɹˈɛzəmˌA/)",
+      "kokoroFix": "綴り resume は文中でも動詞の読み（ɹəzˈum）になるため、名詞の発音を指定",
+      "sentence": {
+        "english": "Please send your resume by Friday.",
+        "japanese": "金曜日までに履歴書を送ってください。",
+        "kokoroInput": "Please send your [resume](/ɹˈɛzəmˌA/) by Friday."
+      }
+    },
+    {
+      "id": "resume-verb",
+      "wordId": "resume",
+      "english": "resume",
+      "sense": "動詞：再開する",
+      "focus": "動詞は後ろに強勢",
+      "expected": {
+        "ipa": "rɪˈzuːm",
+        "cmudict": "R IH0 Z UW1 M"
+      },
+      "kokoroInput": "resume"
+    },
+    {
+      "id": "schedule",
+      "wordId": "schedule",
+      "english": "schedule",
+      "sense": null,
+      "focus": "米国英語は ˈsk-（英国英語は ˈʃ- もある）",
+      "expected": {
+        "ipa": "ˈskedʒuːl",
+        "cmudict": "S K EH1 JH UW0 L"
+      },
+      "kokoroInput": "schedule"
+    },
+    {
+      "id": "look-forward-to-hearing",
+      "wordId": "look-forward-to-hearing",
+      "english": "look forward to hearing",
+      "sense": null,
+      "focus": "長い定型表現",
+      "expected": {
+        "ipa": "lʊk ˈfɔːrwərd tə ˈhɪrɪŋ",
+        "cmudict": "L UH1 K / F AO1 R W ER0 D / T AH0 / HH IH1 R IH0 NG"
+      },
+      "kokoroInput": "look forward to hearing"
+    },
+    {
+      "id": "lead-time",
+      "wordId": "lead-time",
+      "english": "lead time",
+      "sense": "名詞：リードタイム（lead は「導く」の liːd。金属の「鉛」led ではない）",
+      "focus": "lead の読み分け",
+      "expected": {
+        "ipa": "ˈliːd taɪm",
+        "cmudict": "L IY1 D / T AY1 M"
+      },
+      "kokoroInput": "lead time"
+    },
+    {
+      "id": "hierarchy",
+      "wordId": "hierarchy",
+      "english": "hierarchy",
+      "sense": null,
+      "focus": "ˈhaɪər- で始まる長めの語",
+      "expected": {
+        "ipa": "ˈhaɪərɑːrki",
+        "cmudict": "HH AY1 ER0 AA2 R K IY0"
+      },
+      "kokoroInput": "hierarchy"
+    },
+    {
+      "id": "entrepreneur",
+      "wordId": "entrepreneur",
+      "english": "entrepreneur",
+      "sense": null,
+      "focus": "フランス語由来の長い語。最後に強勢",
+      "expected": {
+        "ipa": "ˌɑːntrəprəˈnɝː",
+        "cmudict": "AA2 N T R AH0 P R AH0 N ER1",
+        "note": "-ˈnʊr の読みもある"
+      },
+      "kokoroInput": "entrepreneur"
+    },
+    {
+      "id": "iron-out",
+      "wordId": "iron-out",
+      "english": "iron out",
+      "sense": null,
+      "focus": "句動詞：iron は ˈaɪərn",
+      "expected": {
+        "ipa": "ˈaɪərn ˈaʊt",
+        "cmudict": "AY1 ER0 N / AW1 T"
+      },
+      "kokoroInput": "iron out"
+    },
+    {
+      "id": "memorandum-of-understanding",
+      "wordId": "memorandum-of-understanding",
+      "english": "memorandum of understanding",
+      "sense": null,
+      "focus": "最も長い項目",
+      "expected": {
+        "ipa": "ˌmeməˈrændəm əv ˌʌndərˈstændɪŋ",
+        "cmudict": "M EH2 M ER0 AE1 N D AH0 M / AH0 V / AH2 N D ER0 S T AE1 N D IH0 NG"
+      },
+      "kokoroInput": "memorandum of understanding"
+    },
+    {
+      "id": "cost-effective",
+      "wordId": "cost-effective",
+      "english": "cost-effective",
+      "sense": null,
+      "focus": "ハイフンでつながる語",
+      "expected": {
+        "ipa": "ˌkɔːst ɪˈfektɪv",
+        "cmudict": "K AO1 S T / IH0 F EH1 K T IH0 V"
+      },
+      "kokoroInput": "cost-effective"
+    }
+  ]
+}
