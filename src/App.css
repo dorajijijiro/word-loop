@@ -398,6 +398,38 @@
   color: var(--again);
 }
 
+/*
+  音声を再生できなかったときの表示（Task 021）。画像枠の右上（枠の内側）に重ねる。
+  絶対配置なので、表示・非表示で英語・画像・補助文の位置は動かない。読み込み失敗・自動再生の拒否は押すと再生し直す。
+*/
+.audio-issue {
+  align-items: center;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  display: inline-flex;
+  font-size: 0.72rem;
+  font-weight: 600;
+  height: 32px;
+  padding: 0 10px;
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  white-space: nowrap;
+}
+
+button.audio-issue {
+  color: var(--ink-soft);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.audio-issue.is-blocked {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* 各行は高さ固定。中身（語の長さ・ラベルの有無・補助文の ON/OFF）が変わっても位置が動かない。 */
 .word-copy {
   display: grid;
@@ -438,6 +470,12 @@
   white-space: nowrap;
 }
 
+.image-slot {
+  margin-top: 4px;
+  position: relative;
+  width: min(100%, 260px);
+}
+
 .image-area {
   align-items: center;
   background: var(--surface);
@@ -445,9 +483,8 @@
   display: flex;
   height: clamp(88px, 15svh, 148px);
   justify-content: center;
-  margin-top: 4px;
   transition: transform 120ms ease;
-  width: min(100%, 260px);
+  width: 100%;
 }
 
 .image-area span {

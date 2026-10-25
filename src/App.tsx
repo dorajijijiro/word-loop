@@ -75,6 +75,14 @@ import {
 } from './lib/understanding'
 import { getFocusTrapTarget } from './lib/focusTrap'
 import { nextRecallStep, startRecallStep, type RecallStep } from './lib/recall'
+import {
+  createWordAudioPlayer,
+  getWordAudioUrl,
+  wordAudioFailureLabels,
+  type WordAudioEvent,
+  type WordAudioFailure,
+  type WordAudioPlayer,
+} from './lib/wordAudio'
 import './App.css'
 
 const speedPresets = [
@@ -147,10 +155,11 @@ function App() {
     showPhrase: initialState.showPhrase,
     showAnswerHints: initialState.showAnswerHints,
   })
-  const speechSupported =
-    typeof window !== 'undefined' &&
-    'speechSynthesis' in window &&
-    'SpeechSynthesisUtterance' in window
+  // 遠征の発音は Task 020 で生成した Kokoro の MP3 を再生する（Task 021）。ブラウザの音声合成は使わない。
+  const audioSupported = typeof window !== 'undefined' && typeof window.Audio === 'function'
+  const audioPlayerRef = useRef<WordAudioPlayer | null>(null)
+  // 最後に再生できなかった理由。次に再生できた時点、音声 OFF・遠征の終了で消す（保存しない）。
+  const [audioIssue, setAudioIssue] = useState<{ wordId: string; reason: WordAudioFailure } | null>(null)
   // 再起動時の再開位置は通常選出側の単語にする。
   const normalWordId = session.lastNormalWordId
   const currentWord = wordById.get(session.current.wordId) ?? words[0]
@@ -163,24 +172,33 @@ function App() {
   const recallPhase =
     session.current.source === 'recall' ? (recallStep?.phase ?? 'reveal') : null
 
-  const cancelSpeech = useCallback(() => {
-    if (speechSupported) {
-      window.speechSynthesis.cancel()
+  const handleAudioEvent = useCallback((event: WordAudioEvent) => {
+    if (event.type === 'playing') {
+      setAudioIssue(null)
+    } else if (event.type === 'failed') {
+      setAudioIssue({ wordId: event.wordId, reason: event.reason })
     }
-  }, [speechSupported])
+  }, [])
 
+  // 再生・読み込み中の音声を止める。まだ一度も再生していなければ何もしない。
+  const cancelSpeech = useCallback(() => {
+    audioPlayerRef.current?.stop()
+  }, [])
+
+  // 表示中の語の音声を先頭から再生する（前の音声は止める）。失敗しても遠征・タイマーには影響しない。
   const speak = useCallback(
-    (word: string) => {
-      if (!speechSupported) {
+    (wordId: string) => {
+      if (!audioSupported) {
         return
       }
-
-      cancelSpeech()
-      const utterance = new SpeechSynthesisUtterance(word)
-      utterance.lang = 'en-US'
-      window.speechSynthesis.speak(utterance)
+      audioPlayerRef.current ??= createWordAudioPlayer({
+        createAudio: () => new Audio(),
+        resolveUrl: (id) => getWordAudioUrl(id, import.meta.env.BASE_URL),
+        onEvent: handleAudioEvent,
+      })
+      audioPlayerRef.current.play(wordId)
     },
-    [cancelSpeech, speechSupported],
+    [audioSupported, handleAudioEvent],
   )
 
   // 新しい Encounter を表示するたびに遠征の進行度を1進める。
@@ -268,7 +286,7 @@ function App() {
       }
       const nextWord = wordById.get(nextSession.current.wordId)
       if (speechEnabled && nextWord !== undefined) {
-        speak(nextWord.english)
+        speak(nextWord.id)
       }
     },
     [cancelSpeech, settleExpedition, showEncounter, speechEnabled, speak],
@@ -293,6 +311,7 @@ function App() {
     }
 
     setNoReviewNotice(false)
+    setAudioIssue(null)
     const nextCat = createCatState()
     catRef.current = nextCat
     setCat(nextCat)
@@ -304,7 +323,7 @@ function App() {
 
     const nextWord = wordById.get(nextSession.current.wordId)
     if (speechEnabled && nextWord !== undefined) {
-      speak(nextWord.english)
+      speak(nextWord.id)
     }
 
     if (resumeLoopingRef.current) {
@@ -429,8 +448,18 @@ function App() {
   const toggleSpeech = () => {
     if (speechEnabled) {
       cancelSpeech()
+      setAudioIssue(null)
     }
     setSpeechEnabled((enabled) => !enabled)
+  }
+
+  // 自動周回を止めたら、今の音声も止める（停止中も「発音を再生」で再生できる）。
+  // 再開したときは表示中の語を設定秒数だけ見せてから次へ進む（ここでは再生しないので二重に始まらない）。
+  const toggleLooping = () => {
+    if (isLooping) {
+      cancelSpeech()
+    }
+    setIsLooping((looping) => !looping)
   }
 
   useEffect(() => {
@@ -487,7 +516,7 @@ function App() {
       if (next !== null) {
         const word = wordById.get(sessionRef.current.current.wordId)
         if (speechEnabled && word !== undefined) {
-          speak(word.english)
+          speak(word.id)
         }
         return
       }
@@ -593,13 +622,28 @@ function App() {
     }
   }, [])
 
+  // 遠征中以外（帰還画面・拠点）では音声を止める。再生できなかった表示は遠征中にしか出さず、次の遠征の開始時に消す。
   useEffect(() => {
-    return () => {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel()
+    if (expedition.status !== 'running') {
+      cancelSpeech()
+    }
+  }, [cancelSpeech, expedition.status])
+
+  // 画面を離れたとき（別のタブ・アプリへの切り替え、ページを閉じる、試聴画面への移動）は音声を止める。
+  useEffect(() => {
+    const stopWhenHidden = () => {
+      if (document.visibilityState === 'hidden') {
+        cancelSpeech()
       }
     }
-  }, [])
+    document.addEventListener('visibilitychange', stopWhenHidden)
+    window.addEventListener('pagehide', cancelSpeech)
+    return () => {
+      document.removeEventListener('visibilitychange', stopWhenHidden)
+      window.removeEventListener('pagehide', cancelSpeech)
+      cancelSpeech()
+    }
+  }, [cancelSpeech])
 
   const levelProgress = getLevelProgress(playerProgress.totalXp)
   const levelChange = getLevelChange(expeditionStartXp, playerProgress.totalXp)
@@ -617,7 +661,7 @@ function App() {
 
   return (
     <main className={`word-loop is-${expedition.status}`}>
-      {!speechSupported && (
+      {!audioSupported && (
         <p className="speech-notice" role="status">
           このブラウザでは音声再生を利用できません。
         </p>
@@ -724,12 +768,18 @@ function App() {
               <p className="translation">{currentWord.japanese}</p>
             </div>
 
-            <div className="image-area" role="img" aria-label={currentWord.image.alt}>
-              {currentWord.image.placeholder === neutralImagePlaceholder ? (
-                // 画像未設定の項目は、どの語でも同じ控えめな図形を出す
-                <span className="image-placeholder" aria-hidden="true" />
-              ) : (
-                <span aria-hidden="true">{currentWord.image.placeholder}</span>
+            <div className="image-slot">
+              <div className="image-area" role="img" aria-label={currentWord.image.alt}>
+                {currentWord.image.placeholder === neutralImagePlaceholder ? (
+                  // 画像未設定の項目は、どの語でも同じ控えめな図形を出す
+                  <span className="image-placeholder" aria-hidden="true" />
+                ) : (
+                  <span aria-hidden="true">{currentWord.image.placeholder}</span>
+                )}
+              </div>
+              {/* 音声を再生できなかったときの控えめな表示。画像枠の右上に重ねるので英語や画像の位置は動かない。 */}
+              {speechEnabled && audioIssue !== null && (
+                <AudioIssueBadge reason={audioIssue.reason} onRetry={() => speak(currentWord.id)} />
               )}
             </div>
 
@@ -783,7 +833,7 @@ function App() {
               <button
                 type="button"
                 className="loop-toggle"
-                onClick={() => setIsLooping((looping) => !looping)}
+                onClick={toggleLooping}
                 disabled={!isExpeditionRunning(expedition)}
                 aria-pressed={isLooping}
                 aria-label={isLooping ? '自動周回を停止' : '自動周回を開始'}
@@ -863,7 +913,7 @@ function App() {
                     type="button"
                     className="text-toggle"
                     onClick={toggleSpeech}
-                    disabled={!speechSupported}
+                    disabled={!audioSupported}
                     aria-pressed={speechEnabled}
                   >
                     音声 {speechEnabled ? 'ON' : 'OFF'}
@@ -871,8 +921,8 @@ function App() {
                   <button
                     type="button"
                     className="text-toggle"
-                    onClick={() => speak(currentWord.english)}
-                    disabled={!speechSupported || !speechEnabled || recallPhase === 'cue'}
+                    onClick={() => speak(currentWord.id)}
+                    disabled={!audioSupported || !speechEnabled || recallPhase === 'cue'}
                     aria-label={`${currentWord.english}の発音を再生`}
                   >
                     発音を再生
@@ -1085,6 +1135,20 @@ type LevelSummaryProps = {
 }
 
 // 現在のレベルと次のレベルまでの進捗。拠点と帰還画面で共通。
+// 音声を再生できなかったことを伝える小さな表示。読み込み失敗・自動再生の拒否は押すと再生し直す。
+function AudioIssueBadge({ reason, onRetry }: { reason: WordAudioFailure; onRetry: () => void }) {
+  const label = wordAudioFailureLabels[reason]
+  return label.retry ? (
+    <button type="button" className={`audio-issue is-${reason}`} onClick={onRetry} aria-label={label.description}>
+      {label.short}
+    </button>
+  ) : (
+    <span className={`audio-issue is-${reason}`} role="status" aria-label={label.description}>
+      {label.short}
+    </span>
+  )
+}
+
 function LevelSummary({ progress, totalXp, compact = false }: LevelSummaryProps) {
   const remainingXp = progress.nextLevelTotalXp - totalXp
   return (
