@@ -131,3 +131,13 @@ test('語彙データ: phrase / phrasal verb は複数語で、phrase 例にそ�
     assert.ok(!word.english.includes(' '), word.id)
   }
 })
+
+test('語彙データ: レビューで直した訳・補助文（innocent / turn out / signature）', () => {
+  const byId = new Map(words.map((word) => [word.id, word]))
+  assert.equal(byId.get('innocent')?.japanese, '無実の / 悪意のない')
+  assert.equal(byId.get('innocent')?.phrase, 'an innocent mistake')
+  assert.equal(byId.get('turn-out')?.japanese, '結果的に～になる / ～とわかる')
+  assert.equal(byId.get('turn-out')?.phrase, 'it may turn out fine')
+  assert.equal(byId.get('signature')?.phrase, 'add your signature here')
+  assert.equal(byId.get('signature')?.rank, 'business-basic')
+})

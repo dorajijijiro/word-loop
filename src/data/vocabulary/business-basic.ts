@@ -276,7 +276,7 @@ export const businessBasicEntries: VocabularyEntry[] = [
   ['apologize', '謝る', 'apologize for the delay'],
   ['arrange', '手配する / 並べる', 'arrange a ride'],
   ['reserve', '予約する / 取っておく', 'reserve a table'],
-  ['signature', '署名', 'sign your signature here'],
+  ['signature', '署名', 'add your signature here'],
   ['delay', '遅れ / 遅らせる', 'a long delay'],
   ['recommend', '勧める / 推薦する', 'recommend a restaurant'],
   ['balance', 'バランス / 残高', 'check the balance'],
