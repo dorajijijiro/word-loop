@@ -27,6 +27,8 @@ export type WordAudioEvent =
   | { type: 'ended'; wordId: string }
   | { type: 'failed'; wordId: string; reason: WordAudioFailure }
   | { type: 'stopped' }
+  // 画面が非表示などで再生を見送った（前の音声も止めている）
+  | { type: 'suppressed'; wordId: string }
 
 // HTMLAudioElement のうち使う部分（テストでは偽物に差し替える）
 export type AudioElementLike = {
@@ -48,6 +50,8 @@ export const createWordAudioPlayer = (options: {
   createAudio: () => AudioElementLike
   resolveUrl: (wordId: string) => string | null
   onEvent: (event: WordAudioEvent) => void
+  // false の間は新しい再生を始めない（画面が非表示の間など）。省略時は常に再生する。
+  canPlay?: () => boolean
 }): WordAudioPlayer => {
   let audio: AudioElementLike | null = null
   // 再生のたびに増やす。止めた後・次の語に移った後に届く古いイベントや Promise の結果を無視する。
@@ -78,6 +82,14 @@ export const createWordAudioPlayer = (options: {
     token += 1
     const current = token
     detach()
+    if (options.canPlay !== undefined && !options.canPlay()) {
+      // 見送る。前の音声も止め、後でまとめて再生することもしない（次の操作・カードの切り替えで改めて再生する）
+      if (audio !== null) {
+        release(audio)
+      }
+      options.onEvent({ type: 'suppressed', wordId })
+      return
+    }
     const url = options.resolveUrl(wordId)
     if (url === null) {
       if (audio !== null) {

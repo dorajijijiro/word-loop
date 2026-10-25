@@ -195,6 +195,8 @@ function App() {
         createAudio: () => new Audio(),
         resolveUrl: (id) => getWordAudioUrl(id, import.meta.env.BASE_URL),
         onEvent: handleAudioEvent,
+        // 画面が非表示の間は、自動送りでカードが変わっても再生しない（表示に戻っても後からまとめて再生しない）
+        canPlay: () => document.visibilityState !== 'hidden',
       })
       audioPlayerRef.current.play(wordId)
     },
@@ -630,6 +632,7 @@ function App() {
   }, [cancelSpeech, expedition.status])
 
   // 画面を離れたとき（別のタブ・アプリへの切り替え、ページを閉じる、試聴画面への移動）は音声を止める。
+  // 非表示の間に自動送りで変わったカードの音声は、プレイヤーの canPlay で再生を見送る。
   useEffect(() => {
     const stopWhenHidden = () => {
       if (document.visibilityState === 'hidden') {

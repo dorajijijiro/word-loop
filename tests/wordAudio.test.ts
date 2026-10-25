@@ -183,3 +183,43 @@ test('遠征用の音声一覧: 出題する全語彙を含み、Task 020 の ma
     assert.ok(getWordAudioUrl(word.id, '/')!.startsWith(`/${wordAudioDirectory}${word.id}.mp3?v=`))
   }
 })
+
+test('非表示の間: 新しい再生を始めず前の音声も止め、表示に戻っても見送った音声を後から再生しない', () => {
+  const events: WordAudioEvent[] = []
+  let visible = true
+  const created: FakeAudio[] = []
+  const player = createWordAudioPlayer({
+    createAudio: () => {
+      const audio = new FakeAudio()
+      created.push(audio)
+      return audio
+    },
+    resolveUrl: (wordId) => getWordAudioUrl(wordId, '/', versions),
+    onEvent: (event) => events.push(event),
+    canPlay: () => visible,
+  })
+  player.play('improve')
+  const audio = created[0]
+  assert.equal(audio.plays.length, 1)
+  visible = false
+  // 自動送りで何度カードが変わっても再生しない
+  player.play('provide')
+  player.play('improve')
+  player.play('provide')
+  assert.equal(audio.plays.length, 1)
+  assert.equal(audio.paused, true)
+  assert.equal(audio.src, '')
+  // 非表示の前に始めた再生のイベントが遅れて届いても無視する
+  audio.emit('playing')
+  assert.deepEqual(
+    events.filter((event) => event.type === 'suppressed').map((event) => event.type === 'suppressed' && event.wordId),
+    ['provide', 'improve', 'provide'],
+  )
+  assert.ok(!events.some((event) => event.type === 'playing'))
+  // 表示に戻っただけでは何も再生しない。次の再生（カードの切り替え・手動）から通常どおり
+  visible = true
+  assert.equal(audio.plays.length, 1)
+  player.play('improve')
+  assert.equal(audio.plays.length, 2)
+  assert.equal(audio.src, '/audio/kokoro-vocabulary/improve.mp3?v=aaaa1111')
+})
