@@ -1,0 +1,4 @@
+{
+  "description": "Task 020: 人が実際に聴いて確認した結果。キーは wordId。sha256 は聴いた音声ファイルのハッシュ（manifest.json の値）で、再生成して変わったら未試聴に戻る。result は ok（期待どおり）か misread（誤読・聞き取りにくい）。",
+  "reviews": {}
+}

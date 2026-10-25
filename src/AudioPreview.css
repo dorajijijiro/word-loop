@@ -222,3 +222,107 @@
 .preview-footer {
   display: flex;
 }
+
+/* Task 020: 全語彙の試聴（タブ・検索・絞り込み・状態） */
+.preview-tabs {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 12px;
+}
+
+.preview-tab,
+.preview-more {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  min-height: 48px;
+  padding: 8px 10px;
+  touch-action: manipulation;
+}
+
+.preview-tab.is-active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+}
+
+.preview-tab:focus-visible,
+.preview-more:focus-visible,
+.preview-field input:focus-visible,
+.preview-field select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.preview-filters {
+  display: grid;
+  gap: 10px;
+}
+
+.preview-selects {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.preview-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.preview-field span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.preview-field input,
+.preview-field select {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem; /* iOS Safari が入力時に拡大しない大きさ */
+  min-height: 48px;
+  min-width: 0;
+  padding: 8px 10px;
+  width: 100%;
+}
+
+.preview-status {
+  font-weight: 600;
+}
+
+.preview-status.is-needs-decision,
+.preview-status.is-needs-review,
+.preview-status.is-missing,
+.preview-status.is-misread {
+  color: var(--again);
+}
+
+.preview-status.is-listened {
+  color: var(--accent);
+}
+
+.preview-notes {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.preview-buttons.is-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.audio-preview h3.preview-english {
+  font-size: 1.45rem;
+}
