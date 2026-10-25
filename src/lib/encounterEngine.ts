@@ -45,6 +45,8 @@ export type SelectionContext = {
   understanding: UnderstandingMap
   // 現在時刻（ミリ秒）。
   now: number
+  // 語ごとのランクの順番（未回答の語を易しいランクから導入する。Task 018）。
+  rankOrder?: ReadonlyMap<string, number>
   random?: RandomSource
 }
 
@@ -85,6 +87,7 @@ const selectEncounter = (
     previousWordId,
     shownWordIds: new Set(session.shownWordIds),
     reservations: session.reencounterQueue,
+    rankOrder: context.rankOrder,
     random: context.random,
   })
   if (choice === null) {

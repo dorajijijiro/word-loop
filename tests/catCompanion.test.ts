@@ -119,17 +119,17 @@ afterEach(() => {
 
 test('設定: ボタンの説明の表示は learning-state に保存し、旧データ（項目なし）では表示する', () => {
   installStorage({
-    'word-loop.learning-state': JSON.stringify({ currentWordId: 'dog', intervalSeconds: 0.5, speechEnabled: false, showPhrase: false }),
+    'word-loop.learning-state': JSON.stringify({ currentWordId: 'negotiate', intervalSeconds: 0.5, speechEnabled: false, showPhrase: false }),
   })
   assert.deepEqual(loadLearningState(), {
-    currentWordId: 'dog',
+    currentWordId: 'negotiate',
     intervalSeconds: 0.5,
     speechEnabled: false,
     showPhrase: false,
     showAnswerHints: true,
   })
   installStorage({
-    'word-loop.learning-state': JSON.stringify({ currentWordId: 'dog', intervalSeconds: 0.5, speechEnabled: true, showPhrase: true, showAnswerHints: false }),
+    'word-loop.learning-state': JSON.stringify({ currentWordId: 'negotiate', intervalSeconds: 0.5, speechEnabled: true, showPhrase: true, showAnswerHints: false }),
   })
   assert.equal(loadLearningState().showAnswerHints, false)
   installStorage({ 'word-loop.learning-state': JSON.stringify({ showAnswerHints: 'no' }) })

@@ -2,7 +2,7 @@
 // 時刻（now）と乱数（random）は引数で受け取るので、実時間を待たずに検証できる。
 // 優先順位: ① 再登場の時期が来た「まだわからない」の短期予約 → ② 復習候補 → ③ 未回答の語。
 // - 復習候補: 期日が来た known と、この遠征でまだ表示していない unknown。待っている期間が長い語から出す。
-// - 未回答: この遠征でまだ表示していない語。過去の表示回数が少ない語から出す。
+// - 未回答: この遠征でまだ表示していない語。過去の表示回数が少ない語から出し、同じ回数ならランクの易しい語から出す（Task 018）。
 // - この遠征で一度表示した語は、短期予約（明示的な「まだわからない」）以外では再選出しない。
 // - 期日前の known は出さない。候補がなければ null（遠征はそこで終わる）。
 // new / growth / familiar の分類は、出題可否・順序の判断には使わない。
@@ -45,6 +45,8 @@ export type ScheduleInput = {
   shownWordIds: ReadonlySet<string>
   // 短期予約（予約順）。
   reservations: ReencounterReservation[]
+  // 語ごとのランクの順番（0 が最も易しい）。未回答の語を導入する順番に使う。ない語は 0 とみなす。
+  rankOrder?: ReadonlyMap<string, number>
   random?: RandomSource
 }
 
@@ -99,10 +101,15 @@ export function selectNextWord(input: ScheduleInput): ScheduleChoice | null {
     return { wordId: review, reason: 'review' }
   }
 
-  // ③ 未回答の語（過去の表示回数が少ない語から）。
+  // ③ 未回答の語（過去の表示回数が少ない語から。同じ回数ならランクの易しい語から）。
+  const rankOrder = input.rankOrder ?? new Map<string, number>()
+  const rankCount = Math.max(0, ...rankOrder.values()) + 1
   const unanswered = unshown
     .filter((wordId) => getUnderstanding(input.understanding, wordId) === null)
-    .map((wordId) => ({ wordId, priority: -getWordProgress(input.progress, wordId).encounterCount }))
+    .map((wordId) => ({
+      wordId,
+      priority: -(getWordProgress(input.progress, wordId).encounterCount * rankCount + (rankOrder.get(wordId) ?? 0)),
+    }))
   const next = pickHighest(unanswered, random)
   return next === null ? null : { wordId: next, reason: 'unanswered' }
 }

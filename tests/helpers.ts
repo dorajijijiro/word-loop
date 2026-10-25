@@ -63,6 +63,8 @@ export type SimulateOptions = {
   // 表示した Encounter ごとの回答。配列なら同じ Encounter で順に押す（連打・訂正）。
   answer?: (encounter: Encounter, index: number) => SimulatedAnswer
   stepMilliseconds?: number
+  // 語ごとのランクの順番（Task 018）。
+  rankOrder?: ReadonlyMap<string, number>
 }
 
 export function simulateExpedition(options: SimulateOptions) {
@@ -72,7 +74,7 @@ export function simulateExpedition(options: SimulateOptions) {
   let understanding = options.understanding ?? {}
   let progress = options.progress ?? {}
   let bases: UnderstandingAnswerBases = {}
-  const context = () => ({ progress, understanding, now, random })
+  const context = () => ({ progress, understanding, now, random, rankOrder: options.rankOrder })
   const shown: Encounter[] = []
 
   const started = startEncounter(

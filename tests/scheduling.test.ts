@@ -18,7 +18,7 @@ import {
   recordUnderstanding,
   type UnderstandingMap,
 } from '../src/lib/understanding.ts'
-import { words } from '../src/data/words.ts'
+import { wordRankOrder, words } from '../src/data/words.ts'
 import { seededRandom, simulateExpedition, wordProgress } from './helpers.ts'
 
 const t0 = Date.parse('2026-10-24T00:00:00.000Z')
@@ -416,4 +416,47 @@ test('旧データ: version 1 の known は answeredAt の1日後から復習候
     shown.map((encounter) => encounter.wordId),
     ['oldKnown', 'oldUnknown', 'plain'],
   )
+})
+
+// ---------- ランク順の導入（Task 018） ----------
+
+test('ランク: 未回答の語は表示回数が同じならランクの易しい語から出す', () => {
+  const rankOrder = new Map([['easy', 0], ['middle', 1], ['hard', 3]])
+  const input = baseInput({ wordIds: ['hard', 'middle', 'easy'], rankOrder })
+  assert.deepEqual(selectNextWord(input), { wordId: 'easy', reason: 'unanswered' })
+  assert.deepEqual(selectNextWord({ ...input, shownWordIds: new Set(['easy']) }), { wordId: 'middle', reason: 'unanswered' })
+  // ランクより「過去の表示回数が少ない」ことを優先する（易しい語を何度も見せ続けない）
+  const progress: LearningProgressMap = { easy: wordProgress('easy', { encounterCount: 1 }) }
+  assert.deepEqual(selectNextWord({ ...input, progress, shownWordIds: new Set(['middle']) }), {
+    wordId: 'hard',
+    reason: 'unanswered',
+  })
+})
+
+test('ランク: ランクの指定がなければ従来どおり表示回数だけで選ぶ', () => {
+  const progress: LearningProgressMap = { a: wordProgress('a', { encounterCount: 2 }) }
+  const choices = new Set<string>()
+  const random = seededRandom(7)
+  for (let index = 0; index < 20; index += 1) {
+    const choice = selectNextWord(baseInput({ wordIds: ['a', 'b', 'c'], progress, random }))
+    choices.add(choice?.wordId ?? '')
+  }
+  assert.deepEqual(choices, new Set(['b', 'c']))
+})
+
+test('ランク: 復習候補はランクより優先し、出題間隔（Task 016）は変えない', () => {
+  const understanding = recordUnderstanding({}, 'hard', 'known', iso(t0 - 2 * dayMilliseconds))
+  const rankOrder = new Map([['easy', 0], ['hard', 3]])
+  assert.deepEqual(selectNextWord(baseInput({ wordIds: ['easy', 'hard'], understanding, rankOrder })), {
+    wordId: 'hard',
+    reason: 'review',
+  })
+})
+
+test('ランク: 初めての遠征は内蔵語彙の日常基礎から出題する', () => {
+  const wordIds = words.map((word) => word.id)
+  const { shown, expedition } = simulateExpedition({ wordIds, now: t0, seed: 5, rankOrder: wordRankOrder })
+  assert.equal(expedition.encounterCount, expeditionEncounterLimit)
+  const rankById = new Map(words.map((word) => [word.id, word.rank]))
+  assert.ok(shown.every((encounter) => rankById.get(encounter.wordId) === 'daily-basic'))
 })
