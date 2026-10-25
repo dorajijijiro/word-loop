@@ -27,3 +27,7 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# Task 019: Kokoro 生成用の Python 環境（tools/kokoro/README.md）
+.venv-kokoro
+__pycache__
