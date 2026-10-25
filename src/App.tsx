@@ -49,7 +49,16 @@ import {
   type PlayerProgress,
 } from './lib/playerProgress'
 import { getLevelChange, getLevelProgress, type LevelProgress } from './lib/level'
-import { calculateEncounterXp, getEncounterRewardKind } from './lib/rewards'
+import {
+  createCatState,
+  getNextCatUpdateAt,
+  isCatEating,
+  recordCatAnswer,
+  updateCat,
+  type CatState,
+} from './lib/catCompanion'
+import catSpriteUrl from './assets/cat-sprite.png'
+import { getEncounterRewardKind } from './lib/rewards'
 import {
   answerUnderstanding,
   getUnderstanding,
@@ -76,9 +85,10 @@ const speedPresets = [
 
 const wordIds = words.map((word) => word.id)
 const wordById = new Map(words.map((word) => [word.id, word]))
-const understandingOptions: { status: UnderstandingStatus; label: string }[] = [
-  { status: 'known', label: 'わかる' },
-  { status: 'unknown', label: 'まだわからない' },
+// 左 ×（まだわからない）、右 ✓（わかる）。
+const understandingOptions: { status: UnderstandingStatus; symbol: string; label: string }[] = [
+  { status: 'unknown', symbol: '×', label: 'まだわからない' },
+  { status: 'known', symbol: '✓', label: 'わかる' },
 ]
 const getCurrentTimestamp = () => new Date().toISOString()
 const getCurrentMilliseconds = () => Date.now()
@@ -92,6 +102,13 @@ function App() {
   const [progress, setProgress] = useState(loadLearningProgress)
   const [speechEnabled, setSpeechEnabled] = useState(initialState.speechEnabled)
   const [showPhrase, setShowPhrase] = useState(initialState.showPhrase)
+  const [showAnswerHints, setShowAnswerHints] = useState(initialState.showAnswerHints)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const settingsButtonRef = useRef<HTMLButtonElement>(null)
+  const settingsPanelRef = useRef<HTMLElement>(null)
+  // 猫の反応・イベント（遠征の中だけで持ち、保存しない）。
+  const [cat, setCat] = useState(createCatState)
+  const catRef = useRef<CatState>(cat)
   const [isLooping, setIsLooping] = useState(false)
   const [intervalSeconds, setIntervalSeconds] = useState(initialState.intervalSeconds)
   const [expedition, setExpedition] = useState(createIdleExpedition)
@@ -127,6 +144,7 @@ function App() {
     intervalSeconds: initialState.intervalSeconds,
     speechEnabled: initialState.speechEnabled,
     showPhrase: initialState.showPhrase,
+    showAnswerHints: initialState.showAnswerHints,
   })
   const speechSupported =
     typeof window !== 'undefined' &&
@@ -204,6 +222,8 @@ function App() {
 
     expeditionRef.current = nextExpedition
     setExpedition(nextExpedition)
+    // 遠征が終わったら設定を閉じる
+    setSettingsOpen(false)
   }, [])
 
   const changeWord = useCallback(
@@ -270,6 +290,9 @@ function App() {
     }
 
     setNoReviewNotice(false)
+    const nextCat = createCatState()
+    catRef.current = nextCat
+    setCat(nextCat)
     const nextExpedition = startExpedition()
     expeditionRef.current = nextExpedition
     setExpeditionStartXp(playerProgressRef.current.totalXp)
@@ -354,6 +377,12 @@ function App() {
     if (!isExpeditionRunning(expeditionRef.current)) {
       return
     }
+    // 猫の反応。✓ / × で同じ。同じ Encounter の連打・訂正では進まない。自動送りのタイマーには触れない。
+    const nextCat = recordCatAnswer(catRef.current, target.sequence, getCurrentMilliseconds())
+    if (nextCat !== catRef.current) {
+      catRef.current = nextCat
+      setCat(nextCat)
+    }
     const nextSession =
       status === 'unknown'
         ? reserveReencounter(sessionRef.current, target.wordId, target.sequence)
@@ -361,6 +390,33 @@ function App() {
     if (nextSession !== sessionRef.current) {
       sessionRef.current = nextSession
       setSession(nextSession)
+    }
+  }
+
+  const closeSettings = () => {
+    setSettingsOpen(false)
+    settingsButtonRef.current?.focus()
+  }
+
+  // Escape で閉じる。Tab は設定の中だけを巡回する。
+  const handleSettingsKey = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault()
+      closeSettings()
+      return
+    }
+    if (event.key !== 'Tab' || settingsPanelRef.current === null) {
+      return
+    }
+    const focusable = [...settingsPanelRef.current.querySelectorAll<HTMLElement>('button:not(:disabled), input')]
+    const first = focusable[0]
+    const last = focusable.at(-1)
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last?.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first?.focus()
     }
   }
 
@@ -374,6 +430,27 @@ function App() {
   useEffect(() => {
     isLoopingRef.current = isLooping
   }, [isLooping])
+
+  // 猫の反応・食事の終了と、保留の食事の開始。自動送りのタイマーとは別のタイマーで動かす。
+  useEffect(() => {
+    const nextUpdateAt = getNextCatUpdateAt(cat)
+    if (nextUpdateAt === null) {
+      return
+    }
+    const timerId = window.setTimeout(() => {
+      const next = updateCat(catRef.current, getCurrentMilliseconds())
+      catRef.current = next
+      setCat(next)
+    }, Math.max(0, nextUpdateAt - getCurrentMilliseconds()))
+    return () => window.clearTimeout(timerId)
+  }, [cat])
+
+  // 設定を開いたら中へフォーカスを移す。
+  useEffect(() => {
+    if (settingsOpen) {
+      settingsPanelRef.current?.focus()
+    }
+  }, [settingsOpen])
 
   useEffect(() => {
     intervalSecondsRef.current = intervalSeconds
@@ -480,6 +557,7 @@ function App() {
       intervalSeconds,
       speechEnabled,
       showPhrase,
+      showAnswerHints,
     }
 
     if (pendingSaveRef.current !== undefined) {
@@ -490,7 +568,7 @@ function App() {
       saveLearningState(latestStateRef.current)
       pendingSaveRef.current = undefined
     }, 500)
-  }, [normalWordId, intervalSeconds, showPhrase, speechEnabled])
+  }, [normalWordId, intervalSeconds, showAnswerHints, showPhrase, speechEnabled])
 
   useEffect(() => {
     const flushLearningState = () => {
@@ -520,9 +598,6 @@ function App() {
   const levelProgress = getLevelProgress(playerProgress.totalXp)
   const levelChange = getLevelChange(expeditionStartXp, playerProgress.totalXp)
   const encounterKind = getEncounterRewardKind(session.current)
-  const encounterXp = calculateEncounterXp({ kind: encounterKind })
-  // XP 表示は次の語が出る前に消える長さにする（高速周回で残らない）。
-  const xpFlashMilliseconds = Math.round(Math.min(700, Math.max(160, intervalMilliseconds * 0.9)))
   const encounterLabel =
     encounterKind === 'recall'
       ? { className: 'is-recall', mark: '', text: 'recall' }
@@ -586,8 +661,8 @@ function App() {
 
       {expedition.status === 'running' && (
         <>
+          {/* 学習中は進行度だけを出す（XP・Gold・Level は結果・拠点画面で表示する） */}
           <header className="hud" aria-label="遠征の状況">
-            <p className="hud-level">Lv. {levelProgress.level}</p>
             <p
               className="hud-count"
               aria-label={`遠征 ${expedition.encounterCount} / ${expedition.encounterLimit} Encounter`}
@@ -602,18 +677,6 @@ function App() {
                 }}
               />
             </div>
-            <p className="hud-xp" aria-label={`今回の遠征で ${expedition.xp} XP`}>
-              {/* Recall の XP はカード内に reveal で表示する */}
-              <span
-                key={session.current.sequence}
-                className={`xp-gain is-${encounterKind}`}
-                style={{ animationDuration: `${xpFlashMilliseconds}ms` }}
-                aria-hidden="true"
-              >
-                {recallPhase === null ? `+${encounterXp}` : ''}
-              </span>
-              <span className="numeral">{formatNumber(expedition.xp)}</span> XP
-            </p>
           </header>
 
           <section
@@ -632,8 +695,8 @@ function App() {
             </p>
 
             {/*
-              カードは「英語 → 訳 → 画像 → 補助文 → 理解度ボタン」の高さ固定の行で組む。
-              語の長さ・ラベルの有無・補助文の ON/OFF が変わっても行の高さは変わらないので、英語や画像の位置は動かない。
+              カードは「英語 → 訳 → 画像 → 補助文」の高さ固定の行で、上から積む。
+              語の長さ・ラベルの有無・補助文の ON/OFF・下の猫や回答ボタンの状態が変わっても、英語や画像の位置は動かない。
               遠征では Recall を出さない（Task 014）ため、英語と日本語は常に同時に表示する。
             */}
             <div className="word-copy">
@@ -659,10 +722,15 @@ function App() {
             </div>
 
             <p className="phrase">{showPhrase ? currentWord.phrase : ''}</p>
+          </section>
+
+          {/* 画面下部にまとめる: 猫 → 回答ボタン → 移動・自動周回・設定 */}
+          <div className="study-dock">
+            <CatStage cat={cat} />
 
             {/*
-              理解度の自己申告（任意）。押さなくても自動周回は止まらず、未回答は「まだわからない」とは扱わない。
-              カードの操作はこの2つだけ（カード全体をタップする Attention は Task 016 で廃止）。
+              理解度の自己申告（任意）。左 × = まだわからない、右 ✓ = わかる。大きさ・強調は同じで、正誤の色は使わない。
+              押さなくても自動周回は止まらず、未回答は「まだわからない」とは扱わない。回答しても次の語へは進めない。
             */}
             <div className="understanding" role="group" aria-label="この語の理解度（任意）">
               {understandingOptions.map((option) => {
@@ -673,20 +741,24 @@ function App() {
                     type="button"
                     className={`understanding-button is-${option.status}`}
                     aria-pressed={isSelected}
+                    aria-label={option.label}
                     onPointerDown={beginUnderstandingPress}
                     onPointerCancel={cancelUnderstandingPress}
                     onKeyDown={handleUnderstandingKey}
                     onClick={(event) => handleUnderstandingAnswer(option.status, event)}
                   >
-                    {isSelected && <span aria-hidden="true">✓ </span>}
-                    {option.label}
+                    <span className="answer-symbol" aria-hidden="true">
+                      {option.symbol}
+                    </span>
+                    {/* 説明は設定で隠せる。隠しても高さは変えず、読み上げ用の名前（aria-label）は残る */}
+                    <span className={showAnswerHints ? 'answer-hint' : 'answer-hint is-hidden'} aria-hidden="true">
+                      {option.label}
+                    </span>
                   </button>
                 )
               })}
             </div>
-          </section>
 
-          <div className="controls">
             <nav className="transport" aria-label="単語の移動と自動周回">
               <button
                 type="button"
@@ -702,9 +774,9 @@ function App() {
                 onClick={() => setIsLooping((looping) => !looping)}
                 disabled={!isExpeditionRunning(expedition)}
                 aria-pressed={isLooping}
+                aria-label={isLooping ? '自動周回を停止' : '自動周回を開始'}
               >
-                <span aria-hidden="true">{isLooping ? '❚❚' : '▶'}</span>
-                {isLooping ? ' 停止' : ' 自動周回'}
+                <span aria-hidden="true">{isLooping ? '❚❚ 停止' : '▶ 再生'}</span>
               </button>
               <button
                 type="button"
@@ -714,66 +786,107 @@ function App() {
               >
                 次へ
               </button>
+              <button
+                ref={settingsButtonRef}
+                type="button"
+                className="ghost-button settings-button"
+                onClick={() => setSettingsOpen(true)}
+                aria-haspopup="dialog"
+                aria-expanded={settingsOpen}
+              >
+                設定
+              </button>
             </nav>
+          </div>
 
-            <section className="settings" aria-label="自動周回の設定">
-              <div className="speed-presets" aria-label="速度プリセット" role="group">
-                {speedPresets.map((preset) => (
+          {settingsOpen && (
+            // 設定はカードの上に重ねて開く（カードや回答ボタンの位置は動かない）。開いている間も自動周回は続く。
+            <div className="settings-backdrop" onClick={closeSettings}>
+              <section
+                ref={settingsPanelRef}
+                className="settings-sheet"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="settings-title"
+                tabIndex={-1}
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={handleSettingsKey}
+              >
+                <div className="settings-header">
+                  <h2 id="settings-title">設定</h2>
+                  <button type="button" className="text-toggle" onClick={closeSettings}>
+                    閉じる
+                  </button>
+                </div>
+
+                <div className="speed-presets" aria-label="速度プリセット" role="group">
+                  {speedPresets.map((preset) => (
+                    <button
+                      type="button"
+                      key={preset.label}
+                      className={intervalSeconds === preset.seconds ? 'is-selected' : undefined}
+                      onClick={() => setIntervalSeconds(preset.seconds)}
+                      aria-pressed={intervalSeconds === preset.seconds}
+                      aria-label={`${preset.label} ${preset.seconds}秒/語`}
+                    >
+                      {preset.seconds}s
+                    </button>
+                  ))}
+                </div>
+
+                <label className="speed-control">
+                  <span>速度 {speedLabel}秒/語</span>
+                  <input
+                    type="range"
+                    min="0.2"
+                    max="3"
+                    step="0.05"
+                    value={intervalSeconds}
+                    onChange={(event) => setIntervalSeconds(Number(event.target.value))}
+                  />
+                </label>
+
+                <div className="toggles">
                   <button
                     type="button"
-                    key={preset.label}
-                    className={intervalSeconds === preset.seconds ? 'is-selected' : undefined}
-                    onClick={() => setIntervalSeconds(preset.seconds)}
-                    aria-pressed={intervalSeconds === preset.seconds}
-                    aria-label={`${preset.label} ${preset.seconds}秒/語`}
+                    className="text-toggle"
+                    onClick={toggleSpeech}
+                    disabled={!speechSupported}
+                    aria-pressed={speechEnabled}
                   >
-                    {preset.seconds}s
+                    音声 {speechEnabled ? 'ON' : 'OFF'}
                   </button>
-                ))}
-              </div>
-
-              <label className="speed-control">
-                <span>速度 {speedLabel}秒/語</span>
-                <input
-                  type="range"
-                  min="0.2"
-                  max="3"
-                  step="0.05"
-                  value={intervalSeconds}
-                  onChange={(event) => setIntervalSeconds(Number(event.target.value))}
-                />
-              </label>
-
-              <div className="toggles">
-                <button
-                  type="button"
-                  className="text-toggle"
-                  onClick={toggleSpeech}
-                  disabled={!speechSupported}
-                  aria-pressed={speechEnabled}
-                >
-                  音声 {speechEnabled ? 'ON' : 'OFF'}
-                </button>
-                <button
-                  type="button"
-                  className="text-toggle"
-                  onClick={() => setShowPhrase((visible) => !visible)}
-                  aria-pressed={showPhrase}
-                >
-                  補助文 {showPhrase ? 'ON' : 'OFF'}
-                </button>
-                <button
-                  type="button"
-                  className="text-toggle"
-                  onClick={() => speak(currentWord.english)}
-                  disabled={!speechSupported || !speechEnabled || recallPhase === 'cue'}
-                  aria-label={`${currentWord.english}を再生`}
-                >
-                  再生
-                </button>
-              </div>
-            </section>
-          </div>
+                  <button
+                    type="button"
+                    className="text-toggle"
+                    onClick={() => speak(currentWord.english)}
+                    disabled={!speechSupported || !speechEnabled || recallPhase === 'cue'}
+                    aria-label={`${currentWord.english}の発音を再生`}
+                  >
+                    発音を再生
+                  </button>
+                </div>
+                <div className="toggles">
+                  <button
+                    type="button"
+                    className="text-toggle"
+                    onClick={() => setShowPhrase((visible) => !visible)}
+                    aria-pressed={showPhrase}
+                  >
+                    補助文 {showPhrase ? 'ON' : 'OFF'}
+                  </button>
+                  <button
+                    type="button"
+                    className="text-toggle"
+                    onClick={() => setShowAnswerHints((visible) => !visible)}
+                    aria-pressed={showAnswerHints}
+                  >
+                    ボタンの説明 {showAnswerHints ? 'ON' : 'OFF'}
+                  </button>
+                </div>
+              </section>
+            </div>
+          )}
         </>
       )}
 
@@ -899,17 +1012,18 @@ function App() {
         </section>
       )}
 
-      <p className="dev-stats" aria-label="開発確認用の表示">
-        dev · 単語 {currentIndex + 1}/{words.length} · Encounter {currentProgress.encounterCount} ·
-        Attention {currentProgress.attentionCount} · debt {currentProgress.attentionDebt} · 理解{' '}
-        {currentUnderstanding === null
-          ? '未回答'
-          : `${currentUnderstanding.status}×${currentUnderstanding.knownStreak}`}{' '}
-        · 再遭遇予約 {session.reencounterQueue.length}
-        {session.current.source === 'reencounter' ? ' · 再遭遇中' : ` · ${session.current.bucket}`}
-        {expedition.status === 'running' &&
-          ` · F/N/G/R ${expedition.familiarCount}/${expedition.newCount}/${expedition.growthCount}/${expedition.reencounterCount}`}
-      </p>
+      {/* 開発用表示は学習中には出さない（Task 017） */}
+      {expedition.status !== 'running' && (
+        <p className="dev-stats" aria-label="開発確認用の表示">
+          dev · 単語 {currentIndex + 1}/{words.length} · Encounter {currentProgress.encounterCount} ·
+          Attention {currentProgress.attentionCount} · debt {currentProgress.attentionDebt} · 理解{' '}
+          {currentUnderstanding === null
+            ? '未回答'
+            : `${currentUnderstanding.status}×${currentUnderstanding.knownStreak}`}{' '}
+          · 再遭遇予約 {session.reencounterQueue.length}
+          {session.current.source === 'reencounter' ? ' · 再遭遇中' : ` · ${session.current.bucket}`}
+        </p>
+      )}
     </main>
   )
 }
@@ -918,6 +1032,38 @@ const numberFormat = new Intl.NumberFormat('en-US')
 
 function formatNumber(value: number) {
   return numberFormat.format(value)
+}
+
+// 回答ボタンのすぐ上の、高さ固定の猫の領域。演出は領域の中だけで動き、ほかのレイアウトを動かさない。
+// reduced-motion では歩行・跳ねる動きを止め、静止ポーズと短い表示（♪・もぐもぐ）で伝える。
+function CatStage({ cat }: { cat: CatState }) {
+  const eating = isCatEating(cat)
+  return (
+    <div className="cat-stage">
+      <div
+        className={eating ? 'cat-walker is-eating' : 'cat-walker'}
+        style={{ '--cat-sprite': `url(${catSpriteUrl})` } as CSSProperties}
+        aria-hidden="true"
+      >
+        {/* 向き（往復で反転）→ 小さく跳ねる反応 → コマ送りの順に重ねる。文字（♪・もぐもぐ）は反転させない。 */}
+        <span className="cat-facing">
+          <span key={cat.reaction?.id ?? 0} className={cat.reaction === null ? 'cat-body' : 'cat-body is-reacting'}>
+            <span className="cat-sprite" />
+          </span>
+          {eating && <span className="cat-bowl" />}
+        </span>
+        {cat.reaction !== null && !eating && (
+          <span key={cat.reaction.id} className="cat-note">
+            ♪
+          </span>
+        )}
+        {eating && <span className="cat-note is-eating">もぐもぐ</span>}
+      </div>
+      <p className="visually-hidden" role="status">
+        {eating ? 'ねこがごはんを食べています' : ''}
+      </p>
+    </div>
+  )
 }
 
 type LevelSummaryProps = {
